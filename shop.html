@@ -66,25 +66,21 @@ input,textarea{width:100%;padding:12px;border:1px solid #ddd;border-radius:12px;
 <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-firestore-compat.js"></script>
 <script>
-// ===== حطي الـ config بتاعك هنا - نفس اللي في الداشبورد =====
 const firebaseConfig = {
-  // PASTE_YOUR_FIREBASE_CONFIG_HERE
-  // مثال:
-  // apiKey: "AIza...",
-  // authDomain: "laila-....firebaseapp.com",
-  // projectId: "laila-...",
-  // storageBucket: "laila-....appspot.com",
-  // messagingSenderId: "....",
-  // appId: "1:....:web:...."
+  apiKey: "AIzaSyCcSNVB5cnqtQluyWMyDX6I5q_dj7h6f2Y",
+  authDomain: "laila-store-2dc4c.firebaseapp.com",
+  projectId: "laila-store-2dc4c",
+  storageBucket: "laila-store-2dc4c.firebasestorage.app",
+  messagingSenderId: "450895782726",
+  appId: "1:450895782726:web:57e264ff703863d6583b47",
+  measurementId: "G-M9ZF3Y96DC"
 };
 firebase.initializeApp(firebaseConfig);
 const db = firebase.firestore();
-
 let products = JSON.parse(localStorage.getItem('laila_products') || '[]');
 let rawCats = JSON.parse(localStorage.getItem('laila_cats') || '["Socks","Accessories","Pashmina"]');
 let cats = rawCats.map(c => typeof c === 'string' ? {name:c, image:''} : c);
 let cart=[]; let currentCat='All'; let tempPayShot="";
-// ===== تصغير صورة الدفع عشان توصلك =====
 document.getElementById('fPayShot').addEventListener('change', function(e){
   let file=e.target.files[0]; if(!file) return;
   let r=new FileReader();
@@ -187,4 +183,4 @@ async function sendOrder(){
 renderCats(); loadFromNet();
 </script>
 </body>
-  </html>
+</html>
