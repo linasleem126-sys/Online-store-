@@ -35,9 +35,7 @@ button{border:none;padding:12px;border-radius:20px;cursor:pointer;font-weight:bo
 </head>
 <body>
 <h1>LAILA - لوحة التحكم 💕</h1>
-
 <div class="box"><h2>🧾 الأوردرات</h2><div id="ordersList"></div></div>
-
 <div class="box"><h2>📂 الأقسام</h2>
 <div id="catsList"></div>
 <input id="newCat" placeholder="اسم قسم جديد - مثال: Scarves">
@@ -45,13 +43,11 @@ button{border:none;padding:12px;border-radius:20px;cursor:pointer;font-weight:bo
 <img id="catPreview" style="width:80px;height:80px;object-fit:cover;border-radius:10px;display:none;margin-bottom:10px">
 <button class="btn-cat" onclick="addCategory()">➕ إضافة قسم بالصورة</button>
 </div>
-
 <div class="box"><h2>✨ صورة قسم All Products</h2>
 <img id="allPreview" style="width:80px;height:80px;object-fit:cover;border-radius:10px;display:none;margin-bottom:10px">
 <input id="allImage" type="file" accept="image/*">
 <button class="btn-cat" onclick="saveAllImage()">حفظ صورة All ✅</button>
 </div>
-
 <div class="box"><h2 id="formTitle">➕ أضيفي منتج جديد</h2>
 <input id="pName" placeholder="اسم المنتج">
 <input id="pPrice" type="number" placeholder="السعر">
@@ -60,27 +56,23 @@ button{border:none;padding:12px;border-radius:20px;cursor:pointer;font-weight:bo
 <img id="previewImg" style="width:80px;height:80px;object-fit:cover;border-radius:10px;display:none;margin-bottom:10px">
 <button class="btn-add" id="saveBtn" onclick="saveProduct()">حفظ المنتج ✅</button>
 <button class="cancel-btn" id="cancelBtn" onclick="cancelEdit()">إلغاء التعديل</button></div>
-
 <div class="box"><h2>📦 المنتجات</h2><div id="productsList"></div></div>
-
 <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-firestore-compat.js"></script>
 <script>
-// ===== حطي نفس الـ config بتاع المتجر هنا =====
 const firebaseConfig = {
-  // PASTE_YOUR_FIREBASE_CONFIG_HERE
-  // apiKey: "AIza...",
-  // authDomain: "laila-....firebaseapp.com",
-  // projectId: "laila-...",
-  // storageBucket: "laila-....appspot.com",
-  // messagingSenderId: "....",
-  // appId: "1:....:web:...."
+  apiKey: "AIzaSyCcSNVB5cnqtQluyWMyDX6I5q_dj7h6f2Y",
+  authDomain: "laila-store-2dc4c.firebaseapp.com",
+  projectId: "laila-store-2dc4c",
+  storageBucket: "laila-store-2dc4c.firebasestorage.app",
+  messagingSenderId: "450895782726",
+  appId: "1:450895782726:web:57e264ff703863d6583b47",
+  measurementId: "G-M9ZF3Y96DC"
 };
 firebase.initializeApp(firebaseConfig);
 const db = firebase.firestore();
-
-let products = []; // {id, name, price, cat, image}
-let cats = []; // {id, name, image}
+let products = [];
+let cats = [];
 let orders = [];
 let tempImage = ""; let tempCatImage = "";
 let editingId = null; let editingOldImage = "";
@@ -109,7 +101,6 @@ document.getElementById('newCatImage').addEventListener('change', function(e){
   r.onload = function(ev){ tempCatImage = ev.target.result; document.getElementById('catPreview').src=tempCatImage; document.getElementById('catPreview').style.display='block'; };
   r.readAsDataURL(file);
 });
-
 async function loadAll(){
   try{
     const pSnap = await db.collection("products").orderBy("createdAt","desc").get();
@@ -117,16 +108,14 @@ async function loadAll(){
     const cSnap = await db.collection("categories").orderBy("createdAt","asc").get();
     cats=[]; cSnap.forEach(doc=>{ let d=doc.data(); d.id=doc.id; cats.push(d); });
     if(!cats.length){
-      // اول مرة بس - نعمل الاقسام القديمة
       let defaults = [{name:"Socks",image:""},{name:"Accessories",image:""},{name:"Pashmina",image:""}];
       for(let c of defaults){ let ref=await db.collection("categories").add({...c, createdAt: firebase.firestore.FieldValue.serverTimestamp()}); cats.push({id:ref.id,...c}); }
     }
     const oSnap = await db.collection("orders").orderBy("createdAt","desc").get();
     orders=[]; oSnap.forEach(doc=>{ let d=doc.data(); d.id=doc.id; orders.push(d); });
-  }catch(e){ console.log(e); alert('اتأكدي انك حطيتي الـ Firebase config صح، وان Rules معمولة Test Mode'); }
+  }catch(e){ console.log(e); alert('اتأكدي ان Rules معمولة Test Mode'); }
   renderCats(); render(); renderOrders();
 }
-
 function renderCats(){
   let sel = document.getElementById('pCat');
   sel.innerHTML = cats.map(c=>`<option>${c.name}</option>`).join('');
@@ -180,7 +169,7 @@ async function saveProduct(){
       products.unshift({id:ref.id, name:n, price:Number(pr), cat:c, image:img});
       alert('تم ✅ اتحفظ في Firebase');
     }
-  }catch(e){ console.log(e); alert('مش اتحفظ - اتأكدي ان Rules معمولة Test Mode وان الـ config صح'); return; }
+  }catch(e){ console.log(e); alert('مش اتحفظ - اتأكدي ان Rules معمولة Test Mode'); return; }
   cancelEdit(); render();
 }
 async function delProduct(id){ if(!confirm('تمسحي؟')) return; try{ await db.collection("products").doc(id).delete(); }catch(e){} products=products.filter(p=>p.id!==id); render(); }
@@ -195,7 +184,6 @@ function renderOrders(){
     let items = o.product || o.items || '';
     let total = o.total_price ?? o.total ?? '';
     let dateStr = o.createdAt && o.createdAt.toDate ? o.createdAt.toDate().toLocaleString('ar-EG') : (o.date||'');
-    // صورة الدفع مش بتتحفظ في Firebase عشان حجمها كبير - هتظهر بس لو كانت من localStorage قديم
     let shot = o.shot || '';
     return `<div class="order-card">${badge}<br><b>${name}</b><br>📱 ${o.phone||''}<br>📍 ${o.gov||''} - ${o.address||''}<br>🛍️ ${items}<br><b>التوتال: ${total} EGP</b><br><small>${dateStr}</small>${shot ? `<img src="${shot}" onclick="window.open(this.src)">` : ''}<br><div style="display:flex;gap:8px">${confirmBtn}<button class="del" onclick="delOrder('${o.id}')">حذف الأوردر</button></div></div>`;
   }).join('');
@@ -206,8 +194,7 @@ async function confirmOrder(id){
   renderOrders(); alert('تم تأكيد الدفع ✅ بقي مدفوع');
 }
 async function delOrder(id){ if(!confirm('تمسحي الأوردر ده؟')) return; try{ await db.collection("orders").doc(id).delete(); }catch(e){} orders=orders.filter(o=>o.id!==id); renderOrders(); }
-
 loadAll();
 </script>
 </body>
-  </html>
+</html>
