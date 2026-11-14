@@ -2,14 +2,14 @@
 <html lang="en">
 <head>
   <script>
-const BUILD = "20261114-100";
+const BUILD = "20261114-101";
 if (!location.search.includes(BUILD)) {
   window.location.replace(location.pathname + "?v=" + BUILD);
 }
   </script>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+<meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
 <meta http-equiv="Pragma" content="no-cache">
 <meta http-equiv="Expires" content="0">
 <title>LAILA - Shop</title>
@@ -86,10 +86,12 @@ const firebaseConfig = {
 };
 firebase.initializeApp(firebaseConfig);
 const db = firebase.firestore();
-let products = JSON.parse(localStorage.getItem('laila_products') || '[]');
-let rawCats = JSON.parse(localStorage.getItem('laila_cats') || '["Socks","Accessories","Pashmina"]');
-let cats = rawCats.map(c => typeof c === 'string' ? {name:c, image:''} : c);
+let products = [];
+let cats = [];
 let cart=[]; let currentCat='All'; let tempPayShot="";
+// امسح التخزين القديم اللي كان فيه Socks و Pashmina
+localStorage.removeItem('laila_cats');
+localStorage.removeItem('laila_products');
 document.getElementById('fPayShot').addEventListener('change', function(e){
   let file=e.target.files[0]; if(!file) return;
   let r=new FileReader();
@@ -120,13 +122,16 @@ async function loadFromNet(){
       let data = [];
       snap.forEach(doc=>{ let d=doc.data(); d.id=doc.id; data.push(d); });
       products = data;
-      localStorage.setItem('laila_products', JSON.stringify(products));
       renderCats(); if(document.getElementById('productsView').style.display==='block') renderProducts();
     }
     const catSnap = await db.collection("categories").get();
     if(!catSnap.empty){
       let cData=[]; catSnap.forEach(doc=>{ cData.push(doc.data()); });
-      if(cData.length){ cats=cData; localStorage.setItem('laila_cats', JSON.stringify(cats)); renderCats(); }
+      if(cData.length){ cats=cData; renderCats(); }
+    } else {
+      // لو مفيش اقسام في Firebase خالص، اعرض Accessories بس
+      cats=[{name:"Accessories", image:""}];
+      renderCats();
     }
   }catch(e){ console.log("Firebase load error", e); }
 }
@@ -136,6 +141,7 @@ function getCatImage(catName){
 }
 function renderCats(){
   let g=document.getElementById('catsGrid');
+  if(!cats.length){ g.innerHTML='<p style="grid-column:1/3;text-align:center;color:#999;padding:20px">جاري تحميل الأقسام...</p>'; return; }
   let allImg = localStorage.getItem('laila_all_image') || "";
   let allCard = `<div class="cat-card"><div class="img">${allImg ? `<img src="${allImg}">` : '✨'}</div><h3>All Products</h3><button onclick="openCat('All')">Shop Now →</button></div>`;
   g.innerHTML = cats.map(c=>`<div class="cat-card"><div class="img">${getCatImage(c.name)}</div><h3>${c.name}</h3><button onclick="openCat('${c.name}')">Shop Now →</button></div>`).join('') + allCard;
