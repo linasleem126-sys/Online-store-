@@ -63,9 +63,23 @@ input,textarea{width:100%;padding:12px;border:1px solid #ddd;border-radius:12px;
 <img id="payPreview" style="width:100%;max-height:180px;object-fit:cover;border-radius:12px;display:none;margin-bottom:10px">
 <button class="checkout-btn" id="sendBtn" onclick="sendOrder()">Confirm Order ✓</button><button class="close-btn" onclick="closeCheckout()">Back</button><p id="msg" style="text-align:center;margin-top:10px;font-size:14px"></p></div></div>
 <div id="imgOverlay" onclick="closeImage()"><span>×</span><img id="bigImg" src=""></div>
+<script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-firestore-compat.js"></script>
 <script>
-const SUPABASE_URL = "https://hvykgfbzxoycjtmoelxf.supabase.co";
-const SUPABASE_KEY = "sb_publishable_m-OkE2VWUwmWPBcBMIEmew_gDOLx6Oe";
+// ===== حطي الـ config بتاعك هنا =====
+const firebaseConfig = {
+  // PASTE_YOUR_FIREBASE_CONFIG_HERE
+  // مثال:
+  // apiKey: "AIza...",
+  // authDomain: "laila-....firebaseapp.com",
+  // projectId: "laila-...",
+  // storageBucket: "laila-....appspot.com",
+  // messagingSenderId: "....",
+  // appId: "1:....:web:...."
+};
+firebase.initializeApp(firebaseConfig);
+const db = firebase.firestore();
+
 let products = JSON.parse(localStorage.getItem('laila_products') || '[]');
 let rawCats = JSON.parse(localStorage.getItem('laila_cats') || '["Socks","Accessories","Pashmina"]');
 let cats = rawCats.map(c => typeof c === 'string' ? {name:c, image:''} : c);
@@ -80,10 +94,21 @@ function openImage(src){ document.getElementById('bigImg').src=src; document.get
 function closeImage(){ document.getElementById('imgOverlay').classList.remove('open'); }
 async function loadFromNet(){
   try{
-    let res = await fetch(SUPABASE_URL+"/rest/v1/products?order=id.desc",{headers:{"apikey":SUPABASE_KEY,"Authorization":"Bearer "+SUPABASE_KEY}});
-    let data = await res.json();
-    if(data && data.length){ products = data; renderCats(); if(document.getElementById('productsView').style.display==='block') renderProducts(); }
-  }catch(e){}
+    const snap = await db.collection("products").orderBy("createdAt","desc").get();
+    if(!snap.empty){
+      let data = [];
+      snap.forEach(doc=>{ let d=doc.data(); d.id=doc.id; data.push(d); });
+      products = data;
+      localStorage.setItem('laila_products', JSON.stringify(products));
+      renderCats(); if(document.getElementById('productsView').style.display==='block') renderProducts();
+    }
+    // categories from Firebase if exist
+    const catSnap = await db.collection("categories").get();
+    if(!catSnap.empty){
+      let cData=[]; catSnap.forEach(doc=>{ cData.push(doc.data()); });
+      if(cData.length){ cats=cData; localStorage.setItem('laila_cats', JSON.stringify(cats)); renderCats(); }
+    }
+  }catch(e){ console.log("Firebase load error", e); }
 }
 function getCatImage(catName){
   let f = cats.find(c=>c.name===catName); if(f && f.image) return `<img src="${f.image}">`;
@@ -127,7 +152,19 @@ async function sendOrder(){
   let orders = JSON.parse(localStorage.getItem('laila_orders') || '[]');
   orders.unshift({name:name,phone:phone,gov:gov,address:address,items:productNames,total:getTotal(),shot:tempPayShot,status:'pending',date:new Date().toLocaleString('ar-EG')});
   localStorage.setItem('laila_orders', JSON.stringify(orders));
-  try{ await fetch(SUPABASE_URL + "/rest/v1/orders", { method:"POST", headers:{ "apikey":SUPABASE_KEY, "Authorization":"Bearer "+SUPABASE_KEY, "Content-Type":"application/json", "Prefer":"return=minimal" }, body: JSON.stringify({ customer_name:name, phone:phone, address:gov+' - '+address, product:productNames, quantity:totalQty, total_price:getTotal(), status:'pending' }) }); }catch(e){}
+  try{
+    await db.collection("orders").add({
+      customer_name: name,
+      phone: phone,
+      gov: gov,
+      address: address,
+      product: productNames,
+      quantity: totalQty,
+      total_price: getTotal(),
+      status: 'pending',
+      createdAt: firebase.firestore.FieldValue.serverTimestamp()
+    });
+  }catch(e){ console.log(e); }
   cart=[]; updateCount(); renderProducts(); tempPayShot=""; document.getElementById('fPayShot').value=''; document.getElementById('payPreview').style.display='none';
   setTimeout(()=>{ closeCheckout(); },2500);
 }
