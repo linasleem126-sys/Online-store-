@@ -1,0 +1,163 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>LAILA - لوحة التحكم</title>
+<style>
+*{margin:0;padding:0;box-sizing:border-box;font-family:Arial}
+body{background:#F5EFE6;padding:16px;color:#4A2A2A}
+h1{color:#6B0F2A;text-align:center;margin:10px 0 4px}
+.box{background:#fff;border-radius:16px;padding:16px;margin-bottom:16px}
+.box h2{color:#6B0F2A;font-size:18px;margin-bottom:12px}
+input,select{width:100%;padding:12px;border:1px solid #ddd;border-radius:12px;margin-bottom:10px;font-size:14px}
+button{border:none;padding:12px;border-radius:20px;cursor:pointer;font-weight:bold}
+.btn-add{width:100%;background:#6B0F2A;color:#fff}
+.btn-cat{width:100%;background:#C9A24B;color:#2B1A1A;margin-top:4px}
+.item{display:flex;justify-content:space-between;align-items:center;padding:10px 0;border-bottom:1px solid #eee;font-size:14px;gap:8px}
+.item-info{display:flex;align-items:center;gap:10px}
+.item-info img{width:45px;height:45px;object-fit:cover;border-radius:8px;cursor:zoom-in}
+.btns{display:flex;gap:6px}
+.edit{background:#fff;border:1px solid #6B0F2A!important;color:#6B0F2A;padding:6px 12px;border-radius:20px;font-size:12px}
+.del{background:#fff;border:1px solid red!important;color:red;padding:6px 12px;border-radius:20px;font-size:12px}
+.cat-row{display:flex;justify-content:space-between;align-items:center;padding:8px 0;border-bottom:1px solid #eee}
+.cat-row-info{display:flex;align-items:center;gap:10px}
+.cat-row-info img{width:50px;height:50px;object-fit:cover;border-radius:10px}
+.cat-del{background:#fff;border:1px solid red!important;color:red;padding:4px 10px;border-radius:20px;font-size:12px}
+.cancel-btn{width:100%;background:#eee;color:#333;margin-top:8px;display:none}
+.order-card{border:1px solid #eee;border-radius:14px;padding:12px;margin-bottom:12px;font-size:14px;line-height:22px}
+.order-card img{width:100%;max-height:220px;object-fit:cover;border-radius:10px;margin:8px 0;cursor:zoom-in}
+.badge{display:inline-block;padding:4px 12px;border-radius:20px;font-size:12px;font-weight:bold}
+.badge-pending{background:#FFF3CD;color:#856404}
+.badge-paid{background:#D4EDDA;color:#155724}
+.confirm-btn{background:#28a745;color:#fff;padding:8px 14px;border-radius:20px;font-size:12px;margin-top:8px}
+</style>
+</head>
+<body>
+<h1>LAILA - لوحة التحكم 💕</h1>
+
+<div class="box"><h2>🧾 الأوردرات</h2><div id="ordersList"></div></div>
+
+<div class="box"><h2>📂 الأقسام</h2>
+<div id="catsList"></div>
+<input id="newCat" placeholder="اسم قسم جديد - مثال: Scarves">
+<input id="newCatImage" type="file" accept="image/*">
+<img id="catPreview" style="width:80px;height:80px;object-fit:cover;border-radius:10px;display:none;margin-bottom:10px">
+<button class="btn-cat" onclick="addCategory()">➕ إضافة قسم بالصورة</button>
+</div>
+
+<div class="box"><h2>✨ صورة قسم All Products</h2>
+<img id="allPreview" style="width:80px;height:80px;object-fit:cover;border-radius:10px;display:none;margin-bottom:10px">
+<input id="allImage" type="file" accept="image/*">
+<button class="btn-cat" onclick="saveAllImage()">حفظ صورة All ✅</button>
+</div>
+
+<div class="box"><h2 id="formTitle">➕ أضيفي منتج جديد</h2>
+<input id="pName" placeholder="اسم المنتج">
+<input id="pPrice" type="number" placeholder="السعر">
+<select id="pCat"></select>
+<input id="pImage" type="file" accept="image/*">
+<img id="previewImg" style="width:80px;height:80px;object-fit:cover;border-radius:10px;display:none;margin-bottom:10px">
+<button class="btn-add" id="saveBtn" onclick="saveProduct()">حفظ المنتج ✅</button>
+<button class="cancel-btn" id="cancelBtn" onclick="cancelEdit()">إلغاء التعديل</button></div>
+
+<div class="box"><h2>📦 المنتجات</h2><div id="productsList"></div></div>
+
+<script>
+const SUPABASE_URL = "https://hvykgfbzxoycjtmoelxf.supabase.co";
+const SUPABASE_KEY = "sb_publishable_m-OkE2VWUwmWPBcBMIEmew_gDOLx6Oe";
+let products = JSON.parse(localStorage.getItem('laila_products') || '[]');
+let rawCats = JSON.parse(localStorage.getItem('laila_cats') || '["Socks","Accessories","Pashmina"]');
+let cats = rawCats.map(c => typeof c === 'string' ? {name:c, image:''} : c);
+let tempImage = ""; let tempCatImage = "";
+let editingIndex = -1; let editingOldImage = "";
+let tempAllImage = localStorage.getItem('laila_all_image') || "";
+if(tempAllImage){ document.getElementById('allPreview').src=tempAllImage; document.getElementById('allPreview').style.display='block'; }
+document.getElementById('allImage').addEventListener('change', function(e){
+  let file = e.target.files[0]; if(!file) return;
+  let r = new FileReader();
+  r.onload = function(ev){ tempAllImage = ev.target.result; document.getElementById('allPreview').src=tempAllImage; document.getElementById('allPreview').style.display='block'; };
+  r.readAsDataURL(file);
+});
+function saveAllImage(){
+  if(!tempAllImage){ alert('اختاري صورة الأول'); return; }
+  localStorage.setItem('laila_all_image', tempAllImage);
+  alert('تم حفظ صورة All ✅');
+}
+document.getElementById('pImage').addEventListener('change', function(e){
+  let file = e.target.files[0]; if(!file) return;
+  let r = new FileReader();
+  r.onload = function(ev){ tempImage = ev.target.result; document.getElementById('previewImg').src=tempImage; document.getElementById('previewImg').style.display='block'; };
+  r.readAsDataURL(file);
+});
+document.getElementById('newCatImage').addEventListener('change', function(e){
+  let file = e.target.files[0]; if(!file) return;
+  let r = new FileReader();
+  r.onload = function(ev){ tempCatImage = ev.target.result; document.getElementById('catPreview').src=tempCatImage; document.getElementById('catPreview').style.display='block'; };
+  r.readAsDataURL(file);
+});
+function saveCats(){ localStorage.setItem('laila_cats', JSON.stringify(cats)); }
+function renderCats(){
+  let sel = document.getElementById('pCat');
+  sel.innerHTML = cats.map(c=>`<option>${c.name}</option>`).join('');
+  document.getElementById('catsList').innerHTML = cats.map((c,i)=>`<div class="cat-row"><div class="cat-row-info">${c.image ? `<img src="${c.image}">` : '📂'}<span>${c.name}</span></div><button class="cat-del" onclick="delCategory(${i})">حذف</button></div>`).join('');
+}
+function addCategory(){
+  let v = document.getElementById('newCat').value.trim();
+  if(!v){ alert('اكتبي اسم القسم'); return; }
+  if(cats.find(c=>c.name===v)){ alert('القسم ده موجود'); return; }
+  cats.push({name:v, image:tempCatImage});
+  saveCats();
+  document.getElementById('newCat').value=''; document.getElementById('newCatImage').value=''; tempCatImage=''; document.getElementById('catPreview').style.display='none';
+  renderCats(); alert('تم إضافة القسم بالصورة ✅');
+}
+function delCategory(i){ if(!confirm('تمسحي القسم ده؟')) return; cats.splice(i,1); saveCats(); renderCats(); }
+function render(){
+  if(!products.length){ document.getElementById('productsList').innerHTML='لسه مفيش منتجات'; }
+  else { document.getElementById('productsList').innerHTML = products.map((p,i)=>`<div class="item"><div class="item-info">${p.image ? `<img src="${p.image}" onclick="window.open(this.src)">` : '✨'}<span>${p.name}<br><small>${p.cat} - ${p.price} EGP</small></span></div><div class="btns"><button class="edit" onclick="editProduct(${i})">تعديل ✏️</button><button class="del" onclick="delProduct(${i})">حذف</button></div></div>`).join(''); }
+}
+function editProduct(i){
+  let p = products[i]; editingIndex = i; editingOldImage = p.image || "";
+  document.getElementById('pName').value = p.name; document.getElementById('pPrice').value = p.price; document.getElementById('pCat').value = p.cat;
+  if(p.image){ document.getElementById('previewImg').src=p.image; document.getElementById('previewImg').style.display='block'; }
+  document.getElementById('formTitle').innerText = '✏️ تعديل: ' + p.name;
+  document.getElementById('saveBtn').innerText = 'حفظ التعديل ✅';
+  document.getElementById('cancelBtn').style.display='block'; tempImage = ""; window.scrollTo(0,0);
+}
+function cancelEdit(){
+  editingIndex = -1; tempImage=""; editingOldImage="";
+  document.getElementById('pName').value=''; document.getElementById('pPrice').value=''; document.getElementById('pImage').value='';
+  document.getElementById('previewImg').style.display='none';
+  document.getElementById('formTitle').innerText='➕ أضيفي منتج جديد';
+  document.getElementById('saveBtn').innerText='حفظ المنتج ✅';
+  document.getElementById('cancelBtn').style.display='none';
+}
+async function saveProduct(){
+  let n=document.getElementById('pName').value.trim(); let pr=document.getElementById('pPrice').value.trim(); let c=document.getElementById('pCat').value;
+  if(!n||!pr){ alert('اكتبي الاسم والسعر'); return; }
+  let img = tempImage || editingOldImage || "";
+  if(editingIndex >= 0){ products[editingIndex] = {name:n,price:pr,cat:c,image:img,emoji:'✨'}; alert('تم التعديل ✅'); }
+  else { let newP = {name:n,price:pr,cat:c,image:img,emoji:'✨'}; products.push(newP); alert('تم ✅ اتحفظ');
+    try{ await fetch(SUPABASE_URL+"/rest/v1/products",{method:"POST",headers:{"apikey":SUPABASE_KEY,"Authorization":"Bearer "+SUPABASE_KEY,"Content-Type":"application/json","Prefer":"return=minimal"},body:JSON.stringify({name:n,cat:c,price:Number(pr),emoji:'✨',image:img})}); }catch(e){} }
+  localStorage.setItem('laila_products', JSON.stringify(products)); cancelEdit(); render();
+}
+function delProduct(i){ if(confirm('تمسحي؟')){ products.splice(i,1); localStorage.setItem('laila_products', JSON.stringify(products)); render(); } }
+function renderOrders(){
+  let orders = JSON.parse(localStorage.getItem('laila_orders') || '[]');
+  let box = document.getElementById('ordersList');
+  if(!orders.length){ box.innerHTML='لسه مفيش أوردرات'; return; }
+  box.innerHTML = orders.map((o,i)=>{
+    let badge = o.status==='paid' ? '<span class="badge badge-paid">مدفوع 🟢</span>' : '<span class="badge badge-pending">معلّق 🟡</span>';
+    let confirmBtn = o.status!=='paid' ? `<button class="confirm-btn" onclick="confirmOrder(${i})">تأكيد الدفع ✅</button>` : '';
+    return `<div class="order-card">${badge}<br><b>${o.name}</b><br>📱 ${o.phone}<br>📍 ${o.gov||''} - ${o.address}<br>🛍️ ${o.items}<br><b>التوتال: ${o.total} EGP</b><br><small>${o.date||''}</small>${o.shot ? `<img src="${o.shot}" onclick="window.open(this.src)">` : ''}<br><div style="display:flex;gap:8px">${confirmBtn}<button class="del" onclick="delOrder(${i})">حذف الأوردر</button></div></div>`;
+  }).join('');
+}
+function confirmOrder(i){
+  let orders = JSON.parse(localStorage.getItem('laila_orders') || '[]');
+  orders[i].status='paid'; localStorage.setItem('laila_orders', JSON.stringify(orders)); renderOrders(); alert('تم تأكيد الدفع ✅ بقي مدفوع');
+}
+function delOrder(i){ if(!confirm('تمسحي الأوردر ده؟')) return; let orders = JSON.parse(localStorage.getItem('laila_orders') || '[]'); orders.splice(i,1); localStorage.setItem('laila_orders', JSON.stringify(orders)); renderOrders(); }
+renderCats(); render(); renderOrders();
+</script>
+</body>
+</html>
