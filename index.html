@@ -1,6 +1,12 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
+  <script>
+const BUILD = "20261114-100";
+if (!location.search.includes(BUILD)) {
+  window.location.replace(location.pathname + "?v=" + BUILD);
+}
+  </script>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>LAILA</title>
@@ -20,7 +26,7 @@ body{background:#F5EFE6;color:#4A2A2A;min-height:100vh;display:flex;flex-directi
 <div class="logo">LAILA</div>
 <div class="line"></div>
 <div class="slogan">Every thing you need in one place!</div>
-<button class="btn" onclick="window.location.href='shop.html'">Start Shopping!</button>
+<button class="btn" onclick="window.location.href='shop.html?v=20261114-100'">Start Shopping!</button>
 <div class="small">online store - Shipping All Over Egypt 🚚</div>
 </body>
-</html>
+  </html>
