@@ -66,7 +66,7 @@ input,textarea{width:100%;padding:12px;border:1px solid #ddd;border-radius:12px;
 <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-firestore-compat.js"></script>
 <script>
-// ===== حطي الـ config بتاعك هنا =====
+// ===== حطي الـ config بتاعك هنا - نفس اللي في الداشبورد =====
 const firebaseConfig = {
   // PASTE_YOUR_FIREBASE_CONFIG_HERE
   // مثال:
@@ -84,10 +84,26 @@ let products = JSON.parse(localStorage.getItem('laila_products') || '[]');
 let rawCats = JSON.parse(localStorage.getItem('laila_cats') || '["Socks","Accessories","Pashmina"]');
 let cats = rawCats.map(c => typeof c === 'string' ? {name:c, image:''} : c);
 let cart=[]; let currentCat='All'; let tempPayShot="";
+// ===== تصغير صورة الدفع عشان توصلك =====
 document.getElementById('fPayShot').addEventListener('change', function(e){
   let file=e.target.files[0]; if(!file) return;
   let r=new FileReader();
-  r.onload=function(ev){ tempPayShot=ev.target.result; document.getElementById('payPreview').src=tempPayShot; document.getElementById('payPreview').style.display='block'; };
+  r.onload=function(ev){
+    let img = new Image();
+    img.onload = function(){
+      let canvas = document.createElement('canvas');
+      let max = 800;
+      let w = img.width, h = img.height;
+      if(w > max){ h = h * max / w; w = max; }
+      if(h > max){ w = w * max / h; h = max; }
+      canvas.width = w; canvas.height = h;
+      canvas.getContext('2d').drawImage(img, 0, 0, w, h);
+      tempPayShot = canvas.toDataURL('image/jpeg', 0.6);
+      document.getElementById('payPreview').src=tempPayShot;
+      document.getElementById('payPreview').style.display='block';
+    };
+    img.src = ev.target.result;
+  };
   r.readAsDataURL(file);
 });
 function openImage(src){ document.getElementById('bigImg').src=src; document.getElementById('imgOverlay').classList.add('open'); }
@@ -102,7 +118,6 @@ async function loadFromNet(){
       localStorage.setItem('laila_products', JSON.stringify(products));
       renderCats(); if(document.getElementById('productsView').style.display==='block') renderProducts();
     }
-    // categories from Firebase if exist
     const catSnap = await db.collection("categories").get();
     if(!catSnap.empty){
       let cData=[]; catSnap.forEach(doc=>{ cData.push(doc.data()); });
@@ -162,6 +177,7 @@ async function sendOrder(){
       quantity: totalQty,
       total_price: getTotal(),
       status: 'pending',
+      shot: tempPayShot,
       createdAt: firebase.firestore.FieldValue.serverTimestamp()
     });
   }catch(e){ console.log(e); }
@@ -171,4 +187,4 @@ async function sendOrder(){
 renderCats(); loadFromNet();
 </script>
 </body>
-</html>
+  </html>
