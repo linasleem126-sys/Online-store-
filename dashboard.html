@@ -63,14 +63,27 @@ button{border:none;padding:12px;border-radius:20px;cursor:pointer;font-weight:bo
 
 <div class="box"><h2>📦 المنتجات</h2><div id="productsList"></div></div>
 
+<script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-firestore-compat.js"></script>
 <script>
-const SUPABASE_URL = "https://hvykgfbzxoycjtmoelxf.supabase.co";
-const SUPABASE_KEY = "sb_publishable_m-OkE2VWUwmWPBcBMIEmew_gDOLx6Oe";
-let products = JSON.parse(localStorage.getItem('laila_products') || '[]');
-let rawCats = JSON.parse(localStorage.getItem('laila_cats') || '["Socks","Accessories","Pashmina"]');
-let cats = rawCats.map(c => typeof c === 'string' ? {name:c, image:''} : c);
+// ===== حطي نفس الـ config بتاع المتجر هنا =====
+const firebaseConfig = {
+  // PASTE_YOUR_FIREBASE_CONFIG_HERE
+  // apiKey: "AIza...",
+  // authDomain: "laila-....firebaseapp.com",
+  // projectId: "laila-...",
+  // storageBucket: "laila-....appspot.com",
+  // messagingSenderId: "....",
+  // appId: "1:....:web:...."
+};
+firebase.initializeApp(firebaseConfig);
+const db = firebase.firestore();
+
+let products = []; // {id, name, price, cat, image}
+let cats = []; // {id, name, image}
+let orders = [];
 let tempImage = ""; let tempCatImage = "";
-let editingIndex = -1; let editingOldImage = "";
+let editingId = null; let editingOldImage = "";
 let tempAllImage = localStorage.getItem('laila_all_image') || "";
 if(tempAllImage){ document.getElementById('allPreview').src=tempAllImage; document.getElementById('allPreview').style.display='block'; }
 document.getElementById('allImage').addEventListener('change', function(e){
@@ -96,28 +109,48 @@ document.getElementById('newCatImage').addEventListener('change', function(e){
   r.onload = function(ev){ tempCatImage = ev.target.result; document.getElementById('catPreview').src=tempCatImage; document.getElementById('catPreview').style.display='block'; };
   r.readAsDataURL(file);
 });
-function saveCats(){ localStorage.setItem('laila_cats', JSON.stringify(cats)); }
+
+async function loadAll(){
+  try{
+    const pSnap = await db.collection("products").orderBy("createdAt","desc").get();
+    products=[]; pSnap.forEach(doc=>{ let d=doc.data(); d.id=doc.id; products.push(d); });
+    const cSnap = await db.collection("categories").orderBy("createdAt","asc").get();
+    cats=[]; cSnap.forEach(doc=>{ let d=doc.data(); d.id=doc.id; cats.push(d); });
+    if(!cats.length){
+      // اول مرة بس - نعمل الاقسام القديمة
+      let defaults = [{name:"Socks",image:""},{name:"Accessories",image:""},{name:"Pashmina",image:""}];
+      for(let c of defaults){ let ref=await db.collection("categories").add({...c, createdAt: firebase.firestore.FieldValue.serverTimestamp()}); cats.push({id:ref.id,...c}); }
+    }
+    const oSnap = await db.collection("orders").orderBy("createdAt","desc").get();
+    orders=[]; oSnap.forEach(doc=>{ let d=doc.data(); d.id=doc.id; orders.push(d); });
+  }catch(e){ console.log(e); alert('اتأكدي انك حطيتي الـ Firebase config صح، وان Rules معمولة Test Mode'); }
+  renderCats(); render(); renderOrders();
+}
+
 function renderCats(){
   let sel = document.getElementById('pCat');
   sel.innerHTML = cats.map(c=>`<option>${c.name}</option>`).join('');
-  document.getElementById('catsList').innerHTML = cats.map((c,i)=>`<div class="cat-row"><div class="cat-row-info">${c.image ? `<img src="${c.image}">` : '📂'}<span>${c.name}</span></div><button class="cat-del" onclick="delCategory(${i})">حذف</button></div>`).join('');
+  document.getElementById('catsList').innerHTML = cats.map((c,i)=>`<div class="cat-row"><div class="cat-row-info">${c.image ? `<img src="${c.image}">` : '📂'}<span>${c.name}</span></div><button class="cat-del" onclick="delCategory('${c.id}')">حذف</button></div>`).join('');
 }
-function addCategory(){
+async function addCategory(){
   let v = document.getElementById('newCat').value.trim();
   if(!v){ alert('اكتبي اسم القسم'); return; }
   if(cats.find(c=>c.name===v)){ alert('القسم ده موجود'); return; }
-  cats.push({name:v, image:tempCatImage});
-  saveCats();
+  try{
+    let ref = await db.collection("categories").add({name:v, image:tempCatImage||"", createdAt: firebase.firestore.FieldValue.serverTimestamp()});
+    cats.push({id:ref.id, name:v, image:tempCatImage||""});
+  }catch(e){ alert('مش اتحفظ، اتأكدي من الـ Rules'); return; }
   document.getElementById('newCat').value=''; document.getElementById('newCatImage').value=''; tempCatImage=''; document.getElementById('catPreview').style.display='none';
   renderCats(); alert('تم إضافة القسم بالصورة ✅');
 }
-function delCategory(i){ if(!confirm('تمسحي القسم ده؟')) return; cats.splice(i,1); saveCats(); renderCats(); }
+async function delCategory(id){ if(!confirm('تمسحي القسم ده؟')) return; try{ await db.collection("categories").doc(id).delete(); }catch(e){} cats=cats.filter(c=>c.id!==id); renderCats(); }
 function render(){
   if(!products.length){ document.getElementById('productsList').innerHTML='لسه مفيش منتجات'; }
-  else { document.getElementById('productsList').innerHTML = products.map((p,i)=>`<div class="item"><div class="item-info">${p.image ? `<img src="${p.image}" onclick="window.open(this.src)">` : '✨'}<span>${p.name}<br><small>${p.cat} - ${p.price} EGP</small></span></div><div class="btns"><button class="edit" onclick="editProduct(${i})">تعديل ✏️</button><button class="del" onclick="delProduct(${i})">حذف</button></div></div>`).join(''); }
+  else { document.getElementById('productsList').innerHTML = products.map((p)=>`<div class="item"><div class="item-info">${p.image ? `<img src="${p.image}" onclick="window.open(this.src)">` : '✨'}<span>${p.name}<br><small>${p.cat} - ${p.price} EGP</small></span></div><div class="btns"><button class="edit" onclick="editProduct('${p.id}')">تعديل ✏️</button><button class="del" onclick="delProduct('${p.id}')">حذف</button></div></div>`).join(''); }
 }
-function editProduct(i){
-  let p = products[i]; editingIndex = i; editingOldImage = p.image || "";
+function editProduct(id){
+  let p = products.find(x=>x.id===id); if(!p) return;
+  editingId = id; editingOldImage = p.image || "";
   document.getElementById('pName').value = p.name; document.getElementById('pPrice').value = p.price; document.getElementById('pCat').value = p.cat;
   if(p.image){ document.getElementById('previewImg').src=p.image; document.getElementById('previewImg').style.display='block'; }
   document.getElementById('formTitle').innerText = '✏️ تعديل: ' + p.name;
@@ -125,7 +158,7 @@ function editProduct(i){
   document.getElementById('cancelBtn').style.display='block'; tempImage = ""; window.scrollTo(0,0);
 }
 function cancelEdit(){
-  editingIndex = -1; tempImage=""; editingOldImage="";
+  editingId = null; tempImage=""; editingOldImage="";
   document.getElementById('pName').value=''; document.getElementById('pPrice').value=''; document.getElementById('pImage').value='';
   document.getElementById('previewImg').style.display='none';
   document.getElementById('formTitle').innerText='➕ أضيفي منتج جديد';
@@ -136,28 +169,45 @@ async function saveProduct(){
   let n=document.getElementById('pName').value.trim(); let pr=document.getElementById('pPrice').value.trim(); let c=document.getElementById('pCat').value;
   if(!n||!pr){ alert('اكتبي الاسم والسعر'); return; }
   let img = tempImage || editingOldImage || "";
-  if(editingIndex >= 0){ products[editingIndex] = {name:n,price:pr,cat:c,image:img,emoji:'✨'}; alert('تم التعديل ✅'); }
-  else { let newP = {name:n,price:pr,cat:c,image:img,emoji:'✨'}; products.push(newP); alert('تم ✅ اتحفظ');
-    try{ await fetch(SUPABASE_URL+"/rest/v1/products",{method:"POST",headers:{"apikey":SUPABASE_KEY,"Authorization":"Bearer "+SUPABASE_KEY,"Content-Type":"application/json","Prefer":"return=minimal"},body:JSON.stringify({name:n,cat:c,price:Number(pr),emoji:'✨',image:img})}); }catch(e){} }
-  localStorage.setItem('laila_products', JSON.stringify(products)); cancelEdit(); render();
+  let data = {name:n, price:Number(pr), cat:c, image:img, emoji:'✨', createdAt: firebase.firestore.FieldValue.serverTimestamp()};
+  try{
+    if(editingId){
+      await db.collection("products").doc(editingId).update({name:n, price:Number(pr), cat:c, image:img});
+      let idx = products.findIndex(x=>x.id===editingId); if(idx>=0) products[idx]={...products[idx], name:n, price:Number(pr), cat:c, image:img};
+      alert('تم التعديل ✅');
+    } else {
+      let ref = await db.collection("products").add(data);
+      products.unshift({id:ref.id, name:n, price:Number(pr), cat:c, image:img});
+      alert('تم ✅ اتحفظ في Firebase');
+    }
+  }catch(e){ console.log(e); alert('مش اتحفظ - اتأكدي ان Rules معمولة Test Mode وان الـ config صح'); return; }
+  cancelEdit(); render();
 }
-function delProduct(i){ if(confirm('تمسحي؟')){ products.splice(i,1); localStorage.setItem('laila_products', JSON.stringify(products)); render(); } }
+async function delProduct(id){ if(!confirm('تمسحي؟')) return; try{ await db.collection("products").doc(id).delete(); }catch(e){} products=products.filter(p=>p.id!==id); render(); }
 function renderOrders(){
-  let orders = JSON.parse(localStorage.getItem('laila_orders') || '[]');
   let box = document.getElementById('ordersList');
   if(!orders.length){ box.innerHTML='لسه مفيش أوردرات'; return; }
-  box.innerHTML = orders.map((o,i)=>{
-    let badge = o.status==='paid' ? '<span class="badge badge-paid">مدفوع 🟢</span>' : '<span class="badge badge-pending">معلّق 🟡</span>';
-    let confirmBtn = o.status!=='paid' ? `<button class="confirm-btn" onclick="confirmOrder(${i})">تأكيد الدفع ✅</button>` : '';
-    return `<div class="order-card">${badge}<br><b>${o.name}</b><br>📱 ${o.phone}<br>📍 ${o.gov||''} - ${o.address}<br>🛍️ ${o.items}<br><b>التوتال: ${o.total} EGP</b><br><small>${o.date||''}</small>${o.shot ? `<img src="${o.shot}" onclick="window.open(this.src)">` : ''}<br><div style="display:flex;gap:8px">${confirmBtn}<button class="del" onclick="delOrder(${i})">حذف الأوردر</button></div></div>`;
+  box.innerHTML = orders.map((o)=>{
+    let status = o.status || 'pending';
+    let badge = status==='paid' ? '<span class="badge badge-paid">مدفوع 🟢</span>' : '<span class="badge badge-pending">معلّق 🟡</span>';
+    let confirmBtn = status!=='paid' ? `<button class="confirm-btn" onclick="confirmOrder('${o.id}')">تأكيد الدفع ✅</button>` : '';
+    let name = o.customer_name || o.name || '';
+    let items = o.product || o.items || '';
+    let total = o.total_price ?? o.total ?? '';
+    let dateStr = o.createdAt && o.createdAt.toDate ? o.createdAt.toDate().toLocaleString('ar-EG') : (o.date||'');
+    // صورة الدفع مش بتتحفظ في Firebase عشان حجمها كبير - هتظهر بس لو كانت من localStorage قديم
+    let shot = o.shot || '';
+    return `<div class="order-card">${badge}<br><b>${name}</b><br>📱 ${o.phone||''}<br>📍 ${o.gov||''} - ${o.address||''}<br>🛍️ ${items}<br><b>التوتال: ${total} EGP</b><br><small>${dateStr}</small>${shot ? `<img src="${shot}" onclick="window.open(this.src)">` : ''}<br><div style="display:flex;gap:8px">${confirmBtn}<button class="del" onclick="delOrder('${o.id}')">حذف الأوردر</button></div></div>`;
   }).join('');
 }
-function confirmOrder(i){
-  let orders = JSON.parse(localStorage.getItem('laila_orders') || '[]');
-  orders[i].status='paid'; localStorage.setItem('laila_orders', JSON.stringify(orders)); renderOrders(); alert('تم تأكيد الدفع ✅ بقي مدفوع');
+async function confirmOrder(id){
+  try{ await db.collection("orders").doc(id).update({status:'paid'}); }catch(e){}
+  let o = orders.find(x=>x.id===id); if(o) o.status='paid';
+  renderOrders(); alert('تم تأكيد الدفع ✅ بقي مدفوع');
 }
-function delOrder(i){ if(!confirm('تمسحي الأوردر ده؟')) return; let orders = JSON.parse(localStorage.getItem('laila_orders') || '[]'); orders.splice(i,1); localStorage.setItem('laila_orders', JSON.stringify(orders)); renderOrders(); }
-renderCats(); render(); renderOrders();
+async function delOrder(id){ if(!confirm('تمسحي الأوردر ده؟')) return; try{ await db.collection("orders").doc(id).delete(); }catch(e){} orders=orders.filter(o=>o.id!==id); renderOrders(); }
+
+loadAll();
 </script>
 </body>
-</html>
+  </html>
