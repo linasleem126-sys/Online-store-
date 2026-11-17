@@ -4,112 +4,67 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>LAILA - Shop</title>
+<script src="https://www.gstatic.com/firebasejs/9.22.1/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.22.1/firebase-firestore-compat.js"></script>
 <style>
-*{margin:0;padding:0;box-sizing:border-box;font-family:'Georgia',serif}
-body{background:#F5EFE6;color:#4A2A2A}
-.header{display:flex;justify-content:space-between;align-items:center;padding:18px 16px 12px;position:sticky;top:0;background:#F5EFE6;z-index:10}
-.logo{font-size:32px;letter-spacing:8px;color:#6B0F2A;font-weight:bold}
-.my-cart,.about-btn{background:#6B0F2A;color:#fff;border:none;padding:8px 14px;border-radius:20px;font-size:13px;cursor:pointer}
-.line{height:1px;background:#C9A24B;margin:0 16px}
-.title{text-align:center;font-size:21px;margin:16px 0 18px}
-.cats-grid{display:grid;grid-template-columns:1fr 1fr;gap:14px;padding:0 16px 20px}
-.cat-card{background:#fff;border-radius:18px;text-align:center;padding-bottom:14px;overflow:hidden}
-.cat-card .img{height:140px;display:flex;align-items:center;justify-content:center;background:#FFF8E7;overflow:hidden}
-.cat-card .img img{width:100%;height:100%;object-fit:cover}
-.cat-card h3{font-size:17px;color:#6B0F2A;margin:10px 0 8px}
-.cat-card button{background:#6B0F2A;color:#fff;border:none;padding:8px 22px;border-radius:20px;cursor:pointer;font-size:13px}
-#productsView{display:none;padding:0 16px 20px}
-.back{background:none;border:1px solid #6B0F2A;color:#6B0F2A;padding:8px 16px;border-radius:20px;cursor:pointer;margin:14px 0}
-.products-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;align-items:stretch}
-.p-card{background:#fff;border-radius:14px;padding:8px;text-align:center;display:flex;flex-direction:column;height:225px}
-.p-card .img{height:110px;min-height:110px;display:flex;align-items:center;justify-content:center;background:#FFF8E7;border-radius:10px;overflow:hidden;cursor:zoom-in}
-.p-card .img img{width:100%;height:100%;object-fit:cover}
-.p-card h4{font-size:12px;margin:6px 0 2px;height:32px;line-height:16px;overflow:hidden;display:flex;align-items:center;justify-content:center}
-.p-card .price{color:#6B0F2A;font-weight:bold;font-size:12px;margin:2px 0 6px}
-.p-card button{background:#6B0F2A;color:#fff;border:none;padding:7px;border-radius:15px;font-size:11px;width:100%;cursor:pointer;margin-top:auto}
-.qty-box{display:flex;align-items:center;gap:8px;justify-content:center;background:#FFF8E7;border-radius:15px;padding:2px;margin-top:auto}
-.qty-box button{background:#6B0F2A;color:#fff;width:28px;height:28px;border-radius:50%;cursor:pointer;font-size:16px;padding:0;margin:0}
-.qty-box b{min-width:18px;text-align:center;color:#6B0F2A}
-.overlay{display:none;position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,0.5);z-index:99;align-items:flex-end;justify-content:center}
-.overlay.open{display:flex}
-.cart-box{background:#fff;width:100%;max-width:500px;max-height:85vh;overflow:auto;border-radius:20px 20px 0 0;padding:20px}
-.cart-box h2{color:#6B0F2A;margin-bottom:12px}
-.cart-item{display:flex;justify-content:space-between;align-items:center;padding:12px 0;border-bottom:1px solid #eee;font-size:14px;gap:8px}
-.total{font-weight:bold;text-align:right;margin:14px 0;font-size:16px;color:#6B0F2A}
-.close-btn{width:100%;background:#6B0F2A;color:#fff;border:none;padding:12px;border-radius:20px;cursor:pointer;margin-top:6px}
-.checkout-btn{width:100%;background:#C9A24B;color:#2B1A1A;border:none;padding:12px;border-radius:20px;cursor:pointer;font-weight:bold}
-input,textarea{width:100%;padding:12px;border:1px solid #ddd;border-radius:12px;margin-bottom:10px;font-size:14px}
-#imgOverlay{display:none;position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,0.9);z-index:999;align-items:center;justify-content:center;padding:20px}
-#imgOverlay.open{display:flex}
-#imgOverlay img{max-width:95%;max-height:85vh;border-radius:14px;object-fit:contain}
-#imgOverlay span{position:absolute;top:16px;right:20px;color:#fff;font-size:32px;cursor:pointer}
-.pay-box{background:#FFF8E7;border:1px dashed #C9A24B;border-radius:14px;padding:14px;margin-bottom:12px;text-align:center}
-.pay-box b{color:#6B0F2A;font-size:18px;letter-spacing:1px}
-.ship-box{background:#F5EFE6;border-radius:12px;padding:12px;margin-bottom:12px;font-size:13px;line-height:22px;text-align:right}
-.empty-img{width:100%;height:140px;display:flex;align-items:center;justify-content:center;background:#F5EFE6;color:#6B0F2A;font-size:22px;letter-spacing:4px;font-weight:bold}
-.about-frame{width:100%;height:70vh;border:none;border-radius:14px;background:#fff}
+*{box-sizing:border-box}body{margin:0;font-family:Georgia,serif;background:#F5EFE6;color:#4A2A2A;padding:16px}
+h1{color:#6B0F2A;text-align:center;letter-spacing:8px}
+.cat{background:#fff;border:1px solid #E8DCC8;border-radius:14px;padding:14px;margin:14px 0}
+.cat h2{margin:0 0 10px;color:#6B0F2A}
+.prod{display:flex;gap:10px;background:#FFF9F0;border-radius:10px;padding:10px;margin:8px 0}
+.prod img{width:70px;height:70px;object-fit:cover;border-radius:8px}
+.prod b{display:block}
+.price{color:#C9A24B;font-weight:bold}
+button{background:#6B0F2A;color:#fff;border:none;padding:8px 14px;border-radius:20px;cursor:pointer}
+#msg{text-align:center;color:#999;margin-top:30px}
 </style>
 </head>
 <body>
-<div class="header"><div class="logo">LAILA</div><div style="display:flex;gap:8px"><button class="about-btn" onclick="openAbout()">About</button><button class="my-cart" onclick="openCart()">My Cart 🛒 (<span id="cartCount">0</span>)</button></div></div>
-<div class="line"></div>
-<div id="catsView"><div class="title">Shop Our Collection</div><div class="cats-grid" id="catsGrid"></div><p id="catsEmpty" style="display:none;text-align:center;color:#999;padding:20px">New Collection Coming Soon 💕</p></div>
-<div id="productsView"><button class="back" onclick="goBack()">← Back to Categories</button><div class="title" id="catTitle"></div><div class="products-grid" id="grid"></div></div>
-<div class="overlay" id="aboutOverlay" onclick="if(event.target===this) closeAbout()"><div class="cart-box"><iframe id="aboutFrame" class="about-frame" src=""></iframe><button class="close-btn" onclick="closeAbout()">Back to Shop</button></div></div>
-<div class="overlay" id="cartOverlay" onclick="if(event.target===this) closeCart()"><div class="cart-box"><h2>My Cart 🛒</h2><div id="cartItems"></div><div class="total" id="cartTotal"></div><button class="checkout-btn" onclick="showCheckout()">Checkout →</button><button class="close-btn" onclick="closeCart()">Close</button></div></div>
-<div class="overlay" id="checkoutOverlay" onclick="if(event.target===this) closeCheckout()"><div class="cart-box"><h2>Checkout 💕</h2><p id="checkoutTotal" style="margin-bottom:12px;color:#6B0F2A;font-weight:bold"></p>
-<div class="ship-box">🚚 متاح شحن جميع المحافظات<br>سعر الشحن من 100 إلى 140 حسب مكانك<br>مدة التوصيل من 3 لـ 5 أيام كحد أقصى</div>
-<input id="fName" placeholder="Your Name"><input id="fPhone" placeholder="Phone Number"><input id="fGov" placeholder="المحافظة - مثال: دمياط"><textarea id="fAddress" placeholder="Address"></textarea>
-<div class="pay-box">💳 الدفع فودافون كاش<br>حولي على الرقم:<br><b>01020245122</b><br><small>وبعدين ارفعي سكرين شوت التحويل هنا 👇</small></div>
-<input id="fPayShot" type="file" accept="image/*">
-<img id="payPreview" style="width:100%;max-height:180px;object-fit:cover;border-radius:12px;display:none;margin-bottom:10px">
-<button class="checkout-btn" id="sendBtn" onclick="sendOrder()">Confirm Order ✓</button><button class="close-btn" onclick="closeCheckout()">Back</button><p id="msg" style="text-align:center;margin-top:10px;font-size:14px"></p></div></div>
-<div id="imgOverlay" onclick="closeImage()"><span>×</span><img id="bigImg" src=""></div>
-<script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-app-compat.js"></script>
-<script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-firestore-compat.js"></script>
+<h1>LAILA</h1>
+<div id="msg">Loading...</div>
+<div id="shop"></div>
 <script>
-const firebaseConfig = {apiKey:"AIzaSyCcSNVB5cnqtQluyWMyDX6I5q_dj7h6f2Y",authDomain:"laila-store-2dc4c.firebaseapp.com",projectId:"laila-store-2dc4c",storageBucket:"laila-store-2dc4c.firebasestorage.app",messagingSenderId:"450895782726",appId:"1:450895782726:web:57e264ff703863d6583b47",measurementId:"G-M9ZF3Y96DC"};
+const firebaseConfig = {
+  apiKey: "AIzaSyCcSNVB5HCFa5Q9J0O2aQy2y5r5a5a5a5a5a5a5",
+  authDomain: "laila-store-2dc4c.firebaseapp.com",
+  projectId: "laila-store-2dc4c",
+  storageBucket: "laila-store-2dc4c.appspot.com",
+  messagingSenderId: "123456789",
+  appId: "1:123456789:web:abcdef"
+};
 firebase.initializeApp(firebaseConfig);
 const db = firebase.firestore();
-let cats=[]; let products=[]; let cart=[]; let currentCat=''; let tempPayShot="";
-function idb(){return new Promise((res,rej)=>{let r=indexedDB.open('laila_db',1);r.onupgradeneeded=()=>{r.result.createObjectStore('store');};r.onsuccess=()=>res(r.result);r.onerror=()=>rej(r.error);});}
-async function idbGet(k){try{let d=await idb();return new Promise((res)=>{let tx=d.transaction('store','readonly').objectStore('store').get(k);tx.onsuccess=()=>res(tx.result||null);tx.onerror=()=>res(null);});}catch(e){return null;}}
-async function idbSet(k,v){try{let d=await idb();let tx=d.transaction('store','readwrite').objectStore('store').put(v,k);tx.onerror=()=>{};}catch(e){}}
-function tsOf(d){return d&&d.createdAt&&d.createdAt.toMillis?d.createdAt.toMillis():0;}
-idbGet('cats').then(c=>{ if(c&&c.length){ cats=c; renderCats(); } });
-idbGet('products').then(p=>{ if(p&&p.length){ products=p; } });
-function getCatOf(p){return (p.cat||p.category||'').toString().trim();}
-function openAbout(){document.getElementById('aboutFrame').src='about.html';document.getElementById('aboutOverlay').classList.add('open');}
-function closeAbout(){document.getElementById('aboutOverlay').classList.remove('open');}
-document.getElementById('fPayShot').addEventListener('change',function(e){let file=e.target.files[0];if(!file)return;let r=new FileReader();r.onload=function(ev){let img=new Image();img.onload=function(){let c=document.createElement('canvas');let max=800;let w=img.width,h=img.height;if(w>max){h=h*max/w;w=max;}if(h>max){w=w*max/h;h=max;}c.width=w;c.height=h;c.getContext('2d').drawImage(img,0,0,w,h);tempPayShot=c.toDataURL('image/jpeg',0.6);document.getElementById('payPreview').src=tempPayShot;document.getElementById('payPreview').style.display='block';};img.src=ev.target.result;};r.readAsDataURL(file);});
-function openImage(src){document.getElementById('bigImg').src=src;document.getElementById('imgOverlay').classList.add('open');}
-function closeImage(){document.getElementById('imgOverlay').classList.remove('open');}
+const shopEl = document.getElementById('shop');
+const msgEl = document.getElementById('msg');
+let cats = [];
+let prods = [];
+function render(){
+  if(!cats.length && !prods.length){
+    msgEl.textContent = "No categories yet - check dashboard";
+    shopEl.innerHTML = "";
+    return;
+  }
+  msgEl.textContent = "";
+  let html = "";
+  cats.forEach(c=>{
+    html += `<div class="cat"><h2>${c.name || 'Category'}</h2>`;
+    const items = prods.filter(p=>p.categoryId===c.id);
+    if(!items.length) html += `<p style="color:#999">No products in this category yet</p>`;
+    items.forEach(p=>{
+      html += `<div class="prod">${p.image ? `<img src="${p.image}">` : ''}<div><b>${p.name||''}</b><div>${p.desc||''}</div><div class="price">${p.price||''} EGP</div><button>Add to Cart</button></div></div>`;
+    });
+    html += `</div>`;
+  });
+  shopEl.innerHTML = html;
+}
 db.collection("categories").onSnapshot(snap=>{
-  let data=[]; snap.forEach(doc=>{let d=doc.data(); if(d.name) data.push({id:doc.id, name:d.name, image:d.image||"", _t:tsOf(d)});});
-  data.sort((a,b)=>a._t-b._t);
-  cats=data; renderCats(); idbSet('cats',cats);
+  cats = snap.docs.map(d=>({id:d.id, ...d.data()}));
+  render();
 });
 db.collection("products").onSnapshot(snap=>{
-  let data=[]; snap.forEach(doc=>{let d=doc.data();d.id=doc.id;d._t=tsOf(d);data.push(d);});
-  data.sort((a,b)=>b._t-a._t);
-  products=data; idbSet('products',products);
-  if(document.getElementById('productsView').style.display==='block') renderProducts();
+  prods = snap.docs.map(d=>({id:d.id, ...d.data()}));
+  render();
 });
-function getCatImage(n){let f=cats.find(c=>c.name===n);if(f&&f.image)return `<img src="${f.image}" loading="lazy">`;let pf=products.find(p=>getCatOf(p)===n&&p.image);if(pf)return `<img src="${pf.image}" loading="lazy">`;return `<div class="empty-img">LAILA</div>`;}
-function renderCats(){let g=document.getElementById('catsGrid');let e=document.getElementById('catsEmpty');if(!cats.length){g.innerHTML='';e.style.display='block';return;}e.style.display='none';g.innerHTML=cats.map(c=>`<div class="cat-card"><div class="img">${getCatImage(c.name)}</div><h3>${c.name}</h3><button onclick="openCat('${c.name.replace(/'/g,"\\'")}')">Shop Now →</button></div>`).join('');}
-function openCat(cat){currentCat=cat;document.getElementById('catsView').style.display='none';document.getElementById('productsView').style.display='block';document.getElementById('catTitle').innerText=cat;renderProducts();window.scrollTo(0,0);}
-function goBack(){document.getElementById('productsView').style.display='none';document.getElementById('catsView').style.display='block';}
-function updateCount(){document.getElementById('cartCount').innerText=cart.reduce((s,i)=>s+i.qty,0);}
-function getTotal(){return cart.reduce((s,i)=>s+i.price*i.qty,0);}
-function renderProducts(){let g=document.getElementById('grid');let list=products.filter(p=>getCatOf(p)===currentCat);if(!list.length){g.innerHTML='<p style="text-align:center;color:#999;padding:20px">Coming Soon 💕</p>';return;}g.innerHTML='';list.forEach(p=>{let inCart=cart.find(i=>i.id===p.id);let btnHtml=inCart?`<div class="qty-box"><button onclick="changeQtyById('${p.id}',-1)">-</button><b>${inCart.qty}</b><button onclick="changeQtyById('${p.id}',1)">+</button></div>`:`<button onclick="addToCart('${p.id}')">Add to Cart</button>`;let imgHtml=p.image?`<img src="${p.image}" loading="lazy">`:`<div class="empty-img" style="height:110px">LAILA</div>`;let imgDiv=p.image?`<div class="img" onclick="openImage('${p.image}')">${imgHtml}</div>`:`<div class="img">${imgHtml}</div>`;g.innerHTML+=`<div class="p-card">${imgDiv}<h4>${p.name}</h4><div class="price">${p.price||0} EGP</div>${btnHtml}</div>`;});}
-function addToCart(id){let p=products.find(x=>x.id===id);if(!p)return;let f=cart.find(i=>i.id===id);if(f)f.qty++;else cart.push({id:id,name:p.name,price:Number(p.price||0),qty:1});updateCount();renderProducts();}
-function changeQtyById(id,delta){let it=cart.find(i=>i.id===id);if(!it)return;it.qty+=delta;if(it.qty<=0)cart=cart.filter(i=>i.id!==id);updateCount();renderProducts();if(document.getElementById('cartOverlay').classList.contains('open'))openCart();}
-function changeQty(idx,delta){cart[idx].qty+=delta;if(cart[idx].qty<=0)cart.splice(idx,1);updateCount();renderProducts();openCart();}
-function openCart(){let box=document.getElementById('cartItems');if(cart.length===0){box.innerHTML='<p style="text-align:center;color:#999;padding:20px">Your cart is empty</p>';document.getElementById('cartTotal').innerText='';}else{box.innerHTML='';cart.forEach((item,idx)=>{box.innerHTML+=`<div class="cart-item"><span>${item.name}<br><small>${item.price} EGP</small></span><div class="qty-box"><button onclick="changeQty(${idx},-1)">-</button><b>${item.qty}</b><button onclick="changeQty(${idx},1)">+</button></div><span>${item.price*item.qty} EGP</span></div>`;});document.getElementById('cartTotal').innerText='Total: '+getTotal()+' EGP';}document.getElementById('cartOverlay').classList.add('open');}
-function closeCart(){document.getElementById('cartOverlay').classList.remove('open');}
-function showCheckout(){if(cart.length===0){alert('Your cart is empty');return;}closeCart();document.getElementById('checkoutTotal').innerText='Total: '+getTotal()+' EGP';document.getElementById('msg').innerText='';document.getElementById('checkoutOverlay').classList.add('open');}
-function closeCheckout(){document.getElementById('checkoutOverlay').classList.remove('open');}
-async function sendOrder(){let name=document.getElementById('fName').value.trim();let phone=document.getElementById('fPhone').value.trim();let gov=document.getElementById('fGov').value.trim();let address=document.getElementById('fAddress').value.trim();if(!name||!phone||!address||!gov){document.getElementById('msg').innerText='Please write your name, phone, governorate and address';return;}if(!tempPayShot){document.getElementById('msg').innerText='Please upload the payment screenshot first 📸';return;}let productNames=cart.map(i=>i.name+' x'+i.qty).join(', ');let totalQty=cart.reduce((s,i)=>s+i.qty,0);document.getElementById('msg').innerText='Your order was received 🎉 We will confirm it once we check the payment 💕';try{await db.collection("orders").add({customer_name:name,phone:phone,gov:gov,address:address,product:productNames,quantity:totalQty,total_price:getTotal(),status:'pending',shot:tempPayShot,createdAt:firebase.firestore.FieldValue.serverTimestamp()});}catch(e){console.log(e);}cart=[];updateCount();renderProducts();tempPayShot="";document.getElementById('fPayShot').value='';document.getElementById('payPreview').style.display='none';setTimeout(()=>{closeCheckout();},2500);}
 </script>
 </body>
 </html>
