@@ -73,84 +73,41 @@ firebase.initializeApp(firebaseConfig);
 const db = firebase.firestore();
 let products=[]; let cats=[]; let cart=[]; let currentCat='All'; let tempPayShot="";
 
-// --- كاش سريع زي أي ويب سايت: IndexedDB بيشيل الصور كلها وبيفتح فورا ---
-function idb(){
-  return new Promise((res,rej)=>{
-    let r=indexedDB.open('laila_db',1);
-    r.onupgradeneeded=()=>{ r.result.createObjectStore('store'); };
-    r.onsuccess=()=>res(r.result);
-    r.onerror=()=>rej(r.error);
-  });
-}
-async function idbGet(key){
-  try{
-    let d=await idb();
-    return new Promise((res)=>{
-      let tx=d.transaction('store','readonly').objectStore('store').get(key);
-      tx.onsuccess=()=>res(tx.result||null);
-      tx.onerror=()=>res(null);
-    });
-  }catch(e){ return null; }
-}
-async function idbSet(key,val){
-  try{
-    let d=await idb();
-    let tx=d.transaction('store','readwrite').objectStore('store').put(val,key);
-    tx.onerror=()=>{};
-  }catch(e){}
-}
-// 1. افتح فورا من اللي متحفظ، من غير ما تستنى النت خالص
-idbGet('products').then(cached=>{
-  if(cached && cached.length){
-    products=cached; syncCats(); renderCats();
-  }
-});
+function idb(){return new Promise((res,rej)=>{let r=indexedDB.open('laila_db',1);r.onupgradeneeded=()=>{r.result.createObjectStore('store');};r.onsuccess=()=>res(r.result);r.onerror=()=>rej(r.error);});}
+async function idbGet(key){try{let d=await idb();return new Promise((res)=>{let tx=d.transaction('store','readonly').objectStore('store').get(key);tx.onsuccess=()=>res(tx.result||null);tx.onerror=()=>res(null);});}catch(e){return null;}}
+async function idbSet(key,val){try{let d=await idb();let tx=d.transaction('store','readwrite').objectStore('store').put(val,key);tx.onerror=()=>{};}catch(e){}}
+
+// افتح فورا من المتحفظ، زي أي ويب سايت
+idbGet('cats').then(c=>{ if(c&&c.length){ cats=c; renderCats(); } });
+idbGet('products').then(p=>{ if(p&&p.length){ products=p; if(document.getElementById('productsView').style.display==='block') renderProducts(); } });
 
 function getCatOf(p){return (p.cat||p.category||p.catName||'').toString().trim();}
-function buildCatsFromProducts(){let seen={};let list=[];products.forEach(p=>{let n=getCatOf(p);if(!n||seen[n])return;seen[n]=1;list.push({name:n,image:p.image||""});});return list;}
-function syncCats(){let b=buildCatsFromProducts(); if(b.length){ cats=b; cats.forEach(c=>{if(!c.image){let f=products.find(p=>getCatOf(p)===c.name&&p.image);if(f)c.image=f.image;}}); }}
 function openAbout(){let frame=document.getElementById('aboutFrame');frame.src='about.html';frame.onload=function(){try{let doc=frame.contentDocument||frame.contentWindow.document;doc.querySelectorAll('button, a').forEach(b=>{let t=(b.innerText||'').trim();if(t.includes('Back to Shop')||t.includes('Start shopping'))b.style.display='none';});}catch(e){}};document.getElementById('aboutOverlay').classList.add('open');}
 function closeAbout(){document.getElementById('aboutOverlay').classList.remove('open');}
 document.getElementById('fPayShot').addEventListener('change',function(e){let file=e.target.files[0];if(!file)return;let r=new FileReader();r.onload=function(ev){let img=new Image();img.onload=function(){let c=document.createElement('canvas');let max=800;let w=img.width,h=img.height;if(w>max){h=h*max/w;w=max;}if(h>max){w=w*max/h;h=max;}c.width=w;c.height=h;c.getContext('2d').drawImage(img,0,0,w,h);tempPayShot=c.toDataURL('image/jpeg',0.6);document.getElementById('payPreview').src=tempPayShot;document.getElementById('payPreview').style.display='block';};img.src=ev.target.result;};r.readAsDataURL(file);});
 function openImage(src){document.getElementById('bigImg').src=src;document.getElementById('imgOverlay').classList.add('open');}
 function closeImage(){document.getElementById('imgOverlay').classList.remove('open');}
 
-// 2. في الخلفية، جيب الجديد من Firebase وحدث اللي ظاهر من غير ما تمسحه
-function applyFresh(data){
-  if(!data || !data.length) return;
-  // لو نفس اللي ظاهر بالظبط، متعملش حاجة
-  if(products.length===data.length && JSON.stringify(data.map(d=>d.id))===JSON.stringify(products.map(d=>d.id))) {
-    // بس حدث الصور لو اتغيرت
-    let changed=false;
-    data.forEach((d,i)=>{ if(products[i] && products[i].image!==d.image) changed=true; });
-    if(!changed) return;
-  }
-  products=data; syncCats(); renderCats();
-  idbSet('products',products);
-  if(document.getElementById('productsView').style.display==='block') renderProducts();
-}
-db.collection("products").onSnapshot(snap=>{
+// الأقسام من categories زي الداش بورد بالظبط
+db.collection("categories").orderBy("createdAt","asc").onSnapshot(snap=>{
   if(snap.empty) return;
   let data=[]; snap.forEach(doc=>{let d=doc.data();d.id=doc.id;data.push(d);});
-  applyFresh(data);
+  cats=data; renderCats(); idbSet('cats',cats);
 },err=>{});
-// لو أول مرة خالص ومفيش كاش، جيب مرة واحدة
-setTimeout(()=>{
-  if(products.length) return;
-  db.collection("products").get().then(snap=>{
-    if(snap.empty) return;
-    let data=[]; snap.forEach(doc=>{let d=doc.data();d.id=doc.id;data.push(d);});
-    applyFresh(data);
-  }).catch(()=>{});
-}, 1500);
+db.collection("products").orderBy("createdAt","desc").onSnapshot(snap=>{
+  if(snap.empty) return;
+  let data=[]; snap.forEach(doc=>{let d=doc.data();d.id=doc.id;data.push(d);});
+  products=data; idbSet('products',products);
+  if(document.getElementById('productsView').style.display==='block') renderProducts();
+},err=>{});
 
-function getCatImage(n){let f=cats.find(c=>c.name===n);if(f&&f.image)return `<img src="${f.image}" loading="lazy">`;return `<div class="empty-img">LAILA</div>`;}
-function renderCats(){let g=document.getElementById('catsGrid');if(!cats.length&&products.length)syncCats();if(!cats.length){return;}let html=cats.map(c=>`<div class="cat-card"><div class="img">${getCatImage(c.name)}</div><h3>${c.name}</h3><button onclick="openCat('${c.name}')">Shop Now →</button></div>`).join('');g.innerHTML=html;}
+function getCatImage(n){let f=cats.find(c=>c.name===n);if(f&&f.image)return `<img src="${f.image}" loading="lazy">`;let pf=products.find(p=>getCatOf(p)===n&&p.image);if(pf)return `<img src="${pf.image}" loading="lazy">`;return `<div class="empty-img">LAILA</div>`;}
+function renderCats(){let g=document.getElementById('catsGrid');if(!cats.length) return;let html=cats.map(c=>`<div class="cat-card"><div class="img">${getCatImage(c.name)}</div><h3>${c.name}</h3><button onclick="openCat('${c.name}')">Shop Now →</button></div>`).join('');g.innerHTML=html;}
 function openCat(cat){currentCat=cat;document.getElementById('catsView').style.display='none';document.getElementById('productsView').style.display='block';document.getElementById('catTitle').innerText=cat;renderProducts();window.scrollTo(0,0);}
 function goBack(){document.getElementById('productsView').style.display='none';document.getElementById('catsView').style.display='block';}
 function updateCount(){document.getElementById('cartCount').innerText=cart.reduce((s,i)=>s+i.qty,0);}
 function getTotal(){return cart.reduce((s,i)=>s+i.price*i.qty,0);}
-function renderProducts(){let g=document.getElementById('grid');if(!products.length){return;}let list=currentCat==='All'?products:products.filter(p=>getCatOf(p)===currentCat);if(!list.length)return;g.innerHTML='';list.forEach(p=>{let inCart=cart.find(i=>i.name===p.name);let btnHtml=inCart?`<div class="qty-box"><button onclick="changeQtyByName('${p.name.replace(/'/g,"\\'")}',-1)">-</button><b>${inCart.qty}</b><button onclick="changeQtyByName('${p.name.replace(/'/g,"\\'")}',1)">+</button></div>`:`<button onclick="addToCart('${p.name.replace(/'/g,"\\'")}',${p.price})">Add to Cart</button>`;let imgHtml=p.image?`<img src="${p.image}" loading="lazy">`:`<div class="empty-img" style="height:110px">LAILA</div>`;let imgDiv=p.image?`<div class="img" onclick="openImage('${p.image}')">${imgHtml}</div>`:`<div class="img">${imgHtml}</div>`;g.innerHTML+=`<div class="p-card">${imgDiv}<h4>${p.name}</h4><div class="price">${p.price} EGP</div>${btnHtml}</div>`;});}
+function renderProducts(){let g=document.getElementById('grid');if(!products.length){g.innerHTML='<p style="text-align:center;color:#999;padding:20px">لسه مفيش منتجات في القسم ده</p>';return;}let list=products.filter(p=>getCatOf(p)===currentCat);if(!list.length){g.innerHTML='<p style="text-align:center;color:#999;padding:20px">لسه مفيش منتجات في القسم ده</p>';return;}g.innerHTML='';list.forEach(p=>{let inCart=cart.find(i=>i.name===p.name);let btnHtml=inCart?`<div class="qty-box"><button onclick="changeQtyByName('${p.name.replace(/'/g,"\\'")}',-1)">-</button><b>${inCart.qty}</b><button onclick="changeQtyByName('${p.name.replace(/'/g,"\\'")}',1)">+</button></div>`:`<button onclick="addToCart('${p.name.replace(/'/g,"\\'")}',${p.price||0})">Add to Cart</button>`;let imgHtml=p.image?`<img src="${p.image}" loading="lazy">`:`<div class="empty-img" style="height:110px">LAILA</div>`;let imgDiv=p.image?`<div class="img" onclick="openImage('${p.image}')">${imgHtml}</div>`:`<div class="img">${imgHtml}</div>`;g.innerHTML+=`<div class="p-card">${imgDiv}<h4>${p.name}</h4><div class="price">${p.price||0} EGP</div>${btnHtml}</div>`;});}
 function addToCart(name,price){let f=cart.find(i=>i.name===name);if(f)f.qty++;else cart.push({name,price,qty:1});updateCount();renderProducts();}
 function changeQtyByName(name,delta){let it=cart.find(i=>i.name===name);if(!it)return;it.qty+=delta;if(it.qty<=0)cart=cart.filter(i=>i.name!==name);updateCount();renderProducts();if(document.getElementById('cartOverlay').classList.contains('open'))openCart();}
 function changeQty(idx,delta){cart[idx].qty+=delta;if(cart[idx].qty<=0)cart.splice(idx,1);updateCount();renderProducts();openCart();}
