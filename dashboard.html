@@ -78,11 +78,33 @@ let tempImage = ""; let tempCatImage = "";
 let editingId = null; let editingOldImage = "";
 let tempAllImage = localStorage.getItem('laila_all_image') || "";
 if(tempAllImage){ document.getElementById('allPreview').src=tempAllImage; document.getElementById('allPreview').style.display='block'; }
+
+// --- دي أهم حتة: ضغط أي صورة قبل ما تترفع، عشان المتجر ميقعدش دقيقتين ---
+function compressImage(file, callback){
+  let r = new FileReader();
+  r.onload = function(ev){
+    let img = new Image();
+    img.onload = function(){
+      let canvas = document.createElement('canvas');
+      let max = 800;
+      let w = img.width, h = img.height;
+      if(w > max){ h = h * max / w; w = max; }
+      if(h > max){ w = w * max / h; h = max; }
+      canvas.width = w; canvas.height = h;
+      canvas.getContext('2d').drawImage(img, 0, 0, w, h);
+      // 0.6 يعني جودة 60%، كفاية جدا للمتجر، والصورة هتبقى 80 كيلو بدل 4 ميجا
+      callback(canvas.toDataURL('image/jpeg', 0.6));
+    };
+    img.src = ev.target.result;
+  };
+  r.readAsDataURL(file);
+}
+
 document.getElementById('allImage').addEventListener('change', function(e){
   let file = e.target.files[0]; if(!file) return;
-  let r = new FileReader();
-  r.onload = function(ev){ tempAllImage = ev.target.result; document.getElementById('allPreview').src=tempAllImage; document.getElementById('allPreview').style.display='block'; };
-  r.readAsDataURL(file);
+  compressImage(file, function(compressed){
+    tempAllImage = compressed; document.getElementById('allPreview').src=tempAllImage; document.getElementById('allPreview').style.display='block';
+  });
 });
 function saveAllImage(){
   if(!tempAllImage){ alert('اختاري صورة الأول'); return; }
@@ -91,30 +113,36 @@ function saveAllImage(){
 }
 document.getElementById('pImage').addEventListener('change', function(e){
   let file = e.target.files[0]; if(!file) return;
-  let r = new FileReader();
-  r.onload = function(ev){ tempImage = ev.target.result; document.getElementById('previewImg').src=tempImage; document.getElementById('previewImg').style.display='block'; };
-  r.readAsDataURL(file);
+  compressImage(file, function(compressed){
+    tempImage = compressed; document.getElementById('previewImg').src=tempImage; document.getElementById('previewImg').style.display='block';
+  });
 });
 document.getElementById('newCatImage').addEventListener('change', function(e){
   let file = e.target.files[0]; if(!file) return;
-  let r = new FileReader();
-  r.onload = function(ev){ tempCatImage = ev.target.result; document.getElementById('catPreview').src=tempCatImage; document.getElementById('catPreview').style.display='block'; };
-  r.readAsDataURL(file);
+  compressImage(file, function(compressed){
+    tempCatImage = compressed; document.getElementById('catPreview').src=tempCatImage; document.getElementById('catPreview').style.display='block';
+  });
 });
-async function loadAll(){
-  try{
-    const pSnap = await db.collection("products").orderBy("createdAt","desc").get();
-    products=[]; pSnap.forEach(doc=>{ let d=doc.data(); d.id=doc.id; products.push(d); });
-    const cSnap = await db.collection("categories").orderBy("createdAt","asc").get();
-    cats=[]; cSnap.forEach(doc=>{ let d=doc.data(); d.id=doc.id; cats.push(d); });
+
+// --- بقى بيسمع دايركت، من غير ريفريش ---
+function listenAll(){
+  db.collection("products").orderBy("createdAt","desc").onSnapshot(snap=>{
+    products=[]; snap.forEach(doc=>{ let d=doc.data(); d.id=doc.id; products.push(d); });
+    render();
+  });
+  db.collection("categories").orderBy("createdAt","asc").onSnapshot(async snap=>{
+    cats=[]; snap.forEach(doc=>{ let d=doc.data(); d.id=doc.id; cats.push(d); });
     if(!cats.length){
       let defaults = [{name:"Socks",image:""},{name:"Accessories",image:""},{name:"Pashmina",image:""}];
-      for(let c of defaults){ let ref=await db.collection("categories").add({...c, createdAt: firebase.firestore.FieldValue.serverTimestamp()}); cats.push({id:ref.id,...c}); }
+      for(let c of defaults){ let ref=await db.collection("categories").add({...c, createdAt: firebase.firestore.FieldValue.serverTimestamp()}); }
+      return;
     }
-    const oSnap = await db.collection("orders").orderBy("createdAt","desc").get();
-    orders=[]; oSnap.forEach(doc=>{ let d=doc.data(); d.id=doc.id; orders.push(d); });
-  }catch(e){ console.log(e); alert('اتأكدي ان Rules معمولة Test Mode'); }
-  renderCats(); render(); renderOrders();
+    renderCats();
+  });
+  db.collection("orders").orderBy("createdAt","desc").onSnapshot(snap=>{
+    orders=[]; snap.forEach(doc=>{ let d=doc.data(); d.id=doc.id; orders.push(d); });
+    renderOrders();
+  });
 }
 function renderCats(){
   let sel = document.getElementById('pCat');
@@ -126,13 +154,12 @@ async function addCategory(){
   if(!v){ alert('اكتبي اسم القسم'); return; }
   if(cats.find(c=>c.name===v)){ alert('القسم ده موجود'); return; }
   try{
-    let ref = await db.collection("categories").add({name:v, image:tempCatImage||"", createdAt: firebase.firestore.FieldValue.serverTimestamp()});
-    cats.push({id:ref.id, name:v, image:tempCatImage||""});
+    await db.collection("categories").add({name:v, image:tempCatImage||"", createdAt: firebase.firestore.FieldValue.serverTimestamp()});
   }catch(e){ alert('مش اتحفظ، اتأكدي من الـ Rules'); return; }
   document.getElementById('newCat').value=''; document.getElementById('newCatImage').value=''; tempCatImage=''; document.getElementById('catPreview').style.display='none';
-  renderCats(); alert('تم إضافة القسم بالصورة ✅');
+  alert('تم إضافة القسم بالصورة ✅');
 }
-async function delCategory(id){ if(!confirm('تمسحي القسم ده؟')) return; try{ await db.collection("categories").doc(id).delete(); }catch(e){} cats=cats.filter(c=>c.id!==id); renderCats(); }
+async function delCategory(id){ if(!confirm('تمسحي القسم ده؟')) return; try{ await db.collection("categories").doc(id).delete(); }catch(e){} }
 function render(){
   if(!products.length){ document.getElementById('productsList').innerHTML='لسه مفيش منتجات'; }
   else { document.getElementById('productsList').innerHTML = products.map((p)=>`<div class="item"><div class="item-info">${p.image ? `<img src="${p.image}" onclick="window.open(this.src)">` : '✨'}<span>${p.name}<br><small>${p.cat} - ${p.price} EGP</small></span></div><div class="btns"><button class="edit" onclick="editProduct('${p.id}')">تعديل ✏️</button><button class="del" onclick="delProduct('${p.id}')">حذف</button></div></div>`).join(''); }
@@ -158,21 +185,18 @@ async function saveProduct(){
   let n=document.getElementById('pName').value.trim(); let pr=document.getElementById('pPrice').value.trim(); let c=document.getElementById('pCat').value;
   if(!n||!pr){ alert('اكتبي الاسم والسعر'); return; }
   let img = tempImage || editingOldImage || "";
-  let data = {name:n, price:Number(pr), cat:c, image:img, emoji:'✨', createdAt: firebase.firestore.FieldValue.serverTimestamp()};
   try{
     if(editingId){
       await db.collection("products").doc(editingId).update({name:n, price:Number(pr), cat:c, image:img});
-      let idx = products.findIndex(x=>x.id===editingId); if(idx>=0) products[idx]={...products[idx], name:n, price:Number(pr), cat:c, image:img};
       alert('تم التعديل ✅');
     } else {
-      let ref = await db.collection("products").add(data);
-      products.unshift({id:ref.id, name:n, price:Number(pr), cat:c, image:img});
+      await db.collection("products").add({name:n, price:Number(pr), cat:c, image:img, emoji:'✨', createdAt: firebase.firestore.FieldValue.serverTimestamp()});
       alert('تم ✅ اتحفظ في Firebase');
     }
   }catch(e){ console.log(e); alert('مش اتحفظ - اتأكدي ان Rules معمولة Test Mode'); return; }
-  cancelEdit(); render();
+  cancelEdit();
 }
-async function delProduct(id){ if(!confirm('تمسحي؟')) return; try{ await db.collection("products").doc(id).delete(); }catch(e){} products=products.filter(p=>p.id!==id); render(); }
+async function delProduct(id){ if(!confirm('تمسحي؟')) return; try{ await db.collection("products").doc(id).delete(); }catch(e){} }
 function renderOrders(){
   let box = document.getElementById('ordersList');
   if(!orders.length){ box.innerHTML='لسه مفيش أوردرات'; return; }
@@ -190,11 +214,10 @@ function renderOrders(){
 }
 async function confirmOrder(id){
   try{ await db.collection("orders").doc(id).update({status:'paid'}); }catch(e){}
-  let o = orders.find(x=>x.id===id); if(o) o.status='paid';
-  renderOrders(); alert('تم تأكيد الدفع ✅ بقي مدفوع');
+  alert('تم تأكيد الدفع ✅ بقي مدفوع');
 }
-async function delOrder(id){ if(!confirm('تمسحي الأوردر ده؟')) return; try{ await db.collection("orders").doc(id).delete(); }catch(e){} orders=orders.filter(o=>o.id!==id); renderOrders(); }
-loadAll();
+async function delOrder(id){ if(!confirm('تمسحي الأوردر ده؟')) return; try{ await db.collection("orders").doc(id).delete(); }catch(e){} }
+listenAll();
 </script>
 </body>
 </html>
