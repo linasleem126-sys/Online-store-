@@ -3,6 +3,9 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+<meta http-equiv="Pragma" content="no-cache">
+<meta http-equiv="Expires" content="0">
 <title>LAILA - About Us</title>
 <style>
 *{margin:0;padding:0;box-sizing:border-box;font-family:'Georgia',serif}
@@ -22,7 +25,7 @@ body{background:#F5EFE6;color:#4A2A2A;padding:16px}
 </style>
 </head>
 <body>
-<div class="header"><div class="logo">LAILA</div><button class="back" onclick="window.location.href='shop.html'">← Back to Shop</button></div>
+<div class="header"><div class="logo">LAILA</div><button class="back" onclick="goShop()">← Back to Shop</button></div>
 <div class="line"></div>
 
 <div class="box"><h2>About us</h2>
@@ -45,6 +48,17 @@ body{background:#F5EFE6;color:#4A2A2A;padding:16px}
 <li><b>مكانكم فين؟</b><br>دمياط الجديدة - متجر أونلاين</li>
 </ul></div>
 
-<button class="shop-btn" onclick="window.location.href='shop.html'">Start shopping</button>
+<button class="shop-btn" onclick="goShop()">Start shopping</button>
+
+<script>
+function goShop(){
+  // نروح للنسخة الجديدة غصب عن الكاش، برقم جديد كل مرة
+  window.location.href = 'shop.html?v=' + Date.now();
+}
+// لو رجعتي بزرار الرجوع بتاع المتصفح نفسه، اعملي ريفريش للصفحة عشان متجيبش القديمة
+window.addEventListener('pageshow', function(e){
+  if(e.persisted){ window.location.reload(); }
+});
+</script>
 </body>
 </html>
