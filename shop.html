@@ -59,7 +59,6 @@ input,textarea{width:100%;padding:12px;border:1px solid #ddd;border-radius:12px;
 <div id="catsView"><div class="title">Shop Our Collection</div><div class="cats-grid" id="catsGrid"></div></div>
 <div id="productsView"><button class="back" onclick="goBack()">← Back to Categories</button><div class="title" id="catTitle">Socks</div><div class="products-grid" id="grid"></div></div>
 
-<!-- About بتاعك انتي، زي ما هو، بيتفتح هنا من غير ما نغير فيه حرف -->
 <div class="overlay" id="aboutOverlay" onclick="if(event.target===this) closeAbout()"><div class="cart-box"><iframe id="aboutFrame" class="about-frame" src=""></iframe><button class="close-btn" onclick="closeAbout()">Back to Shop</button></div></div>
 
 <div class="overlay" id="cartOverlay" onclick="if(event.target===this) closeCart()"><div class="cart-box"><h2>My Cart 🛒</h2><div id="cartItems"></div><div class="total" id="cartTotal"></div><button class="checkout-btn" onclick="showCheckout()">Checkout →</button><button class="close-btn" onclick="closeCart()">Close</button></div></div>
@@ -116,7 +115,23 @@ function syncCats(){
     }
   });
 }
-function openAbout(){ document.getElementById('aboutFrame').src='about.html'; document.getElementById('aboutOverlay').classList.add('open'); }
+function openAbout(){
+  let frame = document.getElementById('aboutFrame');
+  frame.src = 'about.html';
+  frame.onload = function(){
+    try{
+      let doc = frame.contentDocument || frame.contentWindow.document;
+      let btns = doc.querySelectorAll('button, a');
+      btns.forEach(b=>{
+        let t = (b.innerText || '').trim();
+        if(t.includes('Back to Shop') || t.includes('Start shopping')){
+          b.style.display = 'none';
+        }
+      });
+    }catch(e){}
+  };
+  document.getElementById('aboutOverlay').classList.add('open');
+}
 function closeAbout(){ document.getElementById('aboutOverlay').classList.remove('open'); }
 document.getElementById('fPayShot').addEventListener('change', function(e){
   let file=e.target.files[0]; if(!file) return;
