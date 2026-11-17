@@ -97,6 +97,32 @@ try{
   if(cc.length){ cats = cc; hasCache = true; }
 }catch(e){}
 
+// لو مفيش جدول اقسام، ولّد الاقسام من المنتجات نفسها
+function buildCatsFromProducts(){
+  let seen = {};
+  let list = [];
+  products.forEach(p=>{
+    let name = (p.cat||'').trim();
+    if(!name || seen[name]) return;
+    seen[name]=1;
+    // صورة القسم = صورة اول منتج فيه
+    list.push({name:name, image: p.image || ""});
+  });
+  return list;
+}
+function syncCats(manualCats){
+  // لو فيه اقسام يدوية في Firebase استخدمها، لو مفيش ولّدها من المنتجات
+  if(manualCats && manualCats.length){ cats = manualCats; }
+  else { cats = buildCatsFromProducts(); }
+  // لو لسه عندنا اقسام يدوية قديمة في الكاش وفيها صورة احلى، ادمج الصورة
+  cats.forEach(c=>{
+    if(!c.image){
+      let f = products.find(p=>p.cat===c.name && p.image);
+      if(f) c.image = f.image;
+    }
+  });
+}
+
 document.getElementById('fPayShot').addEventListener('change', function(e){
   let file=e.target.files[0]; if(!file) return;
   let r=new FileReader();
@@ -120,14 +146,12 @@ document.getElementById('fPayShot').addEventListener('change', function(e){
 });
 function openImage(src){ document.getElementById('bigImg').src=src; document.getElementById('imgOverlay').classList.add('open'); }
 function closeImage(){ document.getElementById('imgOverlay').classList.remove('open'); }
-
 function saveCache(){
   try{
     localStorage.setItem('laila_cache_products', JSON.stringify(products));
     localStorage.setItem('laila_cache_cats', JSON.stringify(cats));
   }catch(e){}
 }
-
 async function loadFromNet(){
   try{
     const [snap, catSnap] = await Promise.all([
@@ -138,8 +162,7 @@ async function loadFromNet(){
     snap.forEach(doc=>{ let d=doc.data(); d.id=doc.id; data.push(d); });
     if(data.length){ products = data; }
     let cData=[]; catSnap.forEach(doc=>{ cData.push(doc.data()); });
-    // مهم: لو مفيش اقسام في Firebase، منألفش قسم وهمي، نسيبها فاضية
-    if(cData.length){ cats=cData; }
+    syncCats(cData);
     isLoaded = true;
     saveCache();
     renderCats();
@@ -147,55 +170,48 @@ async function loadFromNet(){
   }catch(e){ 
     console.log("Firebase load error", e); 
     isLoaded = true;
+    syncCats(cats);
     renderCats();
     if(document.getElementById('productsView').style.display==='block') renderProducts();
   }
 }
-
 db.collection("products").orderBy("createdAt","desc").onSnapshot(snap=>{
   if(snap.empty) return;
   let data=[]; snap.forEach(doc=>{ let d=doc.data(); d.id=doc.id; data.push(d); });
   if(JSON.stringify(data)===JSON.stringify(products)) return;
-  products=data; saveCache();
+  products=data; syncCats(cats); saveCache();
   if(isLoaded || hasCache){
     renderCats();
     if(document.getElementById('productsView').style.display==='block') renderProducts();
   }
 });
 db.collection("categories").onSnapshot(snap=>{
-  if(snap.empty){ 
-    // لو مسحتي كل الاقسام، منألفش قسم وهمي، نفضيها
-    if(isLoaded){ cats=[]; saveCache(); renderCats(); }
-    return; 
-  }
   let cData=[]; snap.forEach(doc=>{ cData.push(doc.data()); });
+  // لو جدول الاقسام فاضي، متفضيش الاقسام، ولّدها من المنتجات
+  if(!cData.length){ syncCats([]); saveCache(); renderCats(); return; }
   if(JSON.stringify(cData)===JSON.stringify(cats)) return;
-  cats=cData; saveCache(); renderCats();
+  syncCats(cData); saveCache(); renderCats();
 });
-
 function getCatImage(catName){
   let f = cats.find(c=>c.name===catName); 
   if(f && f.image) return `<img src="${f.image}">`;
-  // مفيش صورة: مربع شيك مكتوب LAILA، مفيش إيموجي خالص
   return `<div class="empty-img">LAILA</div>`;
 }
-
 function renderCats(){
   let g=document.getElementById('catsGrid');
-  // لسه بيحمل ومفيش كاش: سكيليتون بس، مش اقسام وهمية
   if(!cats.length && !isLoaded && !hasCache){
     g.innerHTML = '<div class="skeleton"></div><div class="skeleton"></div><div class="skeleton"></div><div class="skeleton"></div>';
     return;
   }
-  // خلص تحميل ومفيش اقسام حقيقية: متألفش قسم، قول ان مفيش اقسام
-  if(!cats.length && isLoaded){
+  // لو خلصنا تحميل ولسه مفيش اقسام ولا منتجات، يبقى فعلا مفيش داتا
+  if(!cats.length && isLoaded && !products.length){
     g.innerHTML = '<p style="grid-column:1/3;text-align:center;color:#999;padding:30px">لسه مفيش أقسام</p>';
     return;
   }
+  // لو عندنا منتجات بس الاقسام لسه متولدتش، ولّدها حالا
+  if(!cats.length && products.length){ syncCats([]); }
   if(!cats.length) return;
-  // اعرض الاقسام الحقيقية بس، من غير All Products وهمي لو مفيش منتجات
   let html = cats.map(c=>`<div class="cat-card"><div class="img">${getCatImage(c.name)}</div><h3>${c.name}</h3><button onclick="openCat('${c.name}')">Shop Now →</button></div>`).join('');
-  // All Products يظهر بس لو فيه منتجات حقيقية
   if(products.length){
     let allImg = localStorage.getItem('laila_all_image') || "";
     let allCard = `<div class="cat-card"><div class="img">${allImg ? `<img src="${allImg}">` : `<div class="empty-img">LAILA</div>`}</div><h3>All Products</h3><button onclick="openCat('All')">Shop Now →</button></div>`;
@@ -258,6 +274,8 @@ async function sendOrder(){
   cart=[]; updateCount(); renderProducts(); tempPayShot=""; document.getElementById('fPayShot').value=''; document.getElementById('payPreview').style.display='none';
   setTimeout(()=>{ closeCheckout(); },2500);
 }
+// لو عندنا كاش، ولّد الاقسام منه فورا قبل ما النت ييجي
+if(products.length){ syncCats(cats); }
 renderCats(); loadFromNet();
 </script>
 </body>
