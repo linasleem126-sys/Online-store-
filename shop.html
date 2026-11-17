@@ -4,67 +4,91 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>LAILA - Shop</title>
-<script src="https://www.gstatic.com/firebasejs/9.22.1/firebase-app-compat.js"></script>
-<script src="https://www.gstatic.com/firebasejs/9.22.1/firebase-firestore-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-firestore-compat.js"></script>
 <style>
-*{box-sizing:border-box}body{margin:0;font-family:Georgia,serif;background:#F5EFE6;color:#4A2A2A;padding:16px}
-h1{color:#6B0F2A;text-align:center;letter-spacing:8px}
-.cat{background:#fff;border:1px solid #E8DCC8;border-radius:14px;padding:14px;margin:14px 0}
-.cat h2{margin:0 0 10px;color:#6B0F2A}
-.prod{display:flex;gap:10px;background:#FFF9F0;border-radius:10px;padding:10px;margin:8px 0}
-.prod img{width:70px;height:70px;object-fit:cover;border-radius:8px}
-.prod b{display:block}
-.price{color:#C9A24B;font-weight:bold}
-button{background:#6B0F2A;color:#fff;border:none;padding:8px 14px;border-radius:20px;cursor:pointer}
-#msg{text-align:center;color:#999;margin-top:30px}
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:Georgia,serif;background:#F5EFE6;color:#4A2A2A}
+header{background:#F5EFE6;padding:14px 16px;display:flex;justify-content:space-between;align-items:center;border-bottom:1px solid #E8DCC8;position:sticky;top:0;z-index:10}
+.logo{font-size:28px;letter-spacing:8px;color:#6B0F2A;font-weight:bold}
+nav{display:flex;gap:10px}
+nav button{background:none;border:1px solid #6B0F2A;color:#6B0F2A;padding:7px 14px;border-radius:20px;cursor:pointer}
+nav button.active{background:#6B0F2A;color:#fff}
+#cartBtn{background:#6B0F2A;color:#fff;border:none;padding:8px 16px;border-radius:20px;cursor:pointer}
+.hero{text-align:center;padding:28px 16px}
+.hero h1{font-size:42px;letter-spacing:10px;color:#6B0F2A}
+.hero p{color:#C9A24B;letter-spacing:3px;margin-top:8px}
+#msg{text-align:center;color:#999;margin:20px}
+.wrap{max-width:900px;margin:0 auto;padding:0 16px 40px}
+.cat{background:#fff;border:1px solid #E8DCC8;border-radius:16px;padding:16px;margin:16px 0}
+.cat-head{display:flex;align-items:center;gap:12px;margin-bottom:12px}
+.cat-head img{width:60px;height:60px;object-fit:cover;border-radius:12px}
+.cat-head h2{color:#6B0F2A}
+.prod{display:flex;gap:12px;background:#FFF9F0;border-radius:12px;padding:10px;margin:10px 0}
+.prod img{width:80px;height:80px;object-fit:cover;border-radius:10px}
+.prod b{display:block;font-size:16px}
+.price{color:#C9A24B;font-weight:bold;margin:6px 0}
+.prod button{background:#6B0F2A;color:#fff;border:none;padding:8px 14px;border-radius:20px;cursor:pointer}
+#about{display:none;max-width:900px;margin:0 auto;padding:20px}
+#cartDrawer{display:none;position:fixed;right:0;top:0;width:320px;max-width:90%;height:100%;background:#fff;padding:16px;box-shadow:-2px 0 10px rgba(0,0,0,.2);z-index:20}
 </style>
 </head>
 <body>
-<h1>LAILA</h1>
+<header>
+<div class="logo">LAILA</div>
+<nav>
+<button id="shopTab" class="active" onclick="showShop()">Shop</button>
+<button id="aboutTab" onclick="showAbout()">About</button>
+</nav>
+<button id="cartBtn" onclick="toggleCart()">Cart 🛒 (<span id="cartCount">0</span>)</button>
+</header>
+
+<div id="shopView">
+<div class="hero"><h1>LAILA</h1><p>NEW COLLECTION</p></div>
 <div id="msg">Loading...</div>
-<div id="shop"></div>
+<div class="wrap"><div id="shop"></div></div>
+</div>
+
+<div id="about">
+<h2 style="color:#6B0F2A">About LAILA</h2>
+<p style="margin-top:10px;line-height:1.8">LAILA is a luxury store. New collection, elegant pieces, made with love.</p>
+<button onclick="showShop()" style="margin-top:16px;background:#6B0F2A;color:#fff;border:none;padding:10px 20px;border-radius:20px;cursor:pointer">Back to Shop</button>
+</div>
+
+<div id="cartDrawer">
+<h3 style="color:#6B0F2A">Your Cart</h3>
+<div id="cartItems" style="margin:12px 0">Cart is empty</div>
+<button onclick="toggleCart()" style="background:none;border:1px solid #6B0F2A;color:#6B0F2A;padding:8px 14px;border-radius:20px;cursor:pointer">Close</button>
+</div>
+
 <script>
-const firebaseConfig = {
-  apiKey: "AIzaSyCcSNVB5HCFa5Q9J0O2aQy2y5r5a5a5a5a5a5a5",
-  authDomain: "laila-store-2dc4c.firebaseapp.com",
-  projectId: "laila-store-2dc4c",
-  storageBucket: "laila-store-2dc4c.appspot.com",
-  messagingSenderId: "123456789",
-  appId: "1:123456789:web:abcdef"
-};
+const firebaseConfig = {apiKey:"AIzaSyCcSNVB5cnqtQluyWMyDX6I5q_dj7h6f2Y",authDomain:"laila-store-2dc4c.firebaseapp.com",projectId:"laila-store-2dc4c",storageBucket:"laila-store-2dc4c.firebasestorage.app",messagingSenderId:"450895782726",appId:"1:450895782726:web:57e264ff703863d6583b47",measurementId:"G-M9ZF3Y96DC"};
 firebase.initializeApp(firebaseConfig);
 const db = firebase.firestore();
 const shopEl = document.getElementById('shop');
 const msgEl = document.getElementById('msg');
-let cats = [];
-let prods = [];
+let cats=[], prods=[], cart=[];
+function showShop(){document.getElementById('shopView').style.display='block';document.getElementById('about').style.display='none';document.getElementById('shopTab').classList.add('active');document.getElementById('aboutTab').classList.remove('active')}
+function showAbout(){document.getElementById('shopView').style.display='none';document.getElementById('about').style.display='block';document.getElementById('shopTab').classList.remove('active');document.getElementById('aboutTab').classList.add('active')}
+function toggleCart(){const d=document.getElementById('cartDrawer');d.style.display=d.style.display==='block'?'none':'block'}
+function addToCart(id){const p=prods.find(x=>x.id===id);cart.push(p);document.getElementById('cartCount').textContent=cart.length;document.getElementById('cartItems').innerHTML=cart.map(c=>`<div style="padding:8px 0;border-bottom:1px solid #eee">${c.name} - ${c.price} EGP</div>`).join('');alert('Added to cart')}
 function render(){
-  if(!cats.length && !prods.length){
-    msgEl.textContent = "No categories yet - check dashboard";
-    shopEl.innerHTML = "";
-    return;
-  }
-  msgEl.textContent = "";
-  let html = "";
+  if(!cats.length){msgEl.textContent="No categories yet - check dashboard";shopEl.innerHTML="";return}
+  msgEl.textContent="";
+  let html="";
   cats.forEach(c=>{
-    html += `<div class="cat"><h2>${c.name || 'Category'}</h2>`;
-    const items = prods.filter(p=>p.categoryId===c.id);
-    if(!items.length) html += `<p style="color:#999">No products in this category yet</p>`;
+    html+=`<div class="cat"><div class="cat-head">${c.image?`<img src="${c.image}">`:''}<h2>${c.name}</h2></div>`;
+    const items = prods.filter(p=>p.cat===c.name);
+    if(!items.length) html+=`<p style="color:#999">No products in this category yet</p>`;
     items.forEach(p=>{
-      html += `<div class="prod">${p.image ? `<img src="${p.image}">` : ''}<div><b>${p.name||''}</b><div>${p.desc||''}</div><div class="price">${p.price||''} EGP</div><button>Add to Cart</button></div></div>`;
+      html+=`<div class="prod">${p.image?`<img src="${p.image}">`:''}<div><b>${p.name||''}</b><div>${p.cat||''}</div><div class="price">${p.price||''} EGP</div><button onclick="addToCart('${p.id}')">Add to Cart</button></div></div>`;
     });
-    html += `</div>`;
+    html+=`</div>`;
   });
-  shopEl.innerHTML = html;
+  shopEl.innerHTML=html;
 }
-db.collection("categories").onSnapshot(snap=>{
-  cats = snap.docs.map(d=>({id:d.id, ...d.data()}));
-  render();
-});
-db.collection("products").onSnapshot(snap=>{
-  prods = snap.docs.map(d=>({id:d.id, ...d.data()}));
-  render();
-});
+db.collection("categories").onSnapshot(snap=>{cats=snap.docs.map(d=>({id:d.id,...d.data()}));render()});
+db.collection("products").onSnapshot(snap=>{prods=snap.docs.map(d=>({id:d.id,...d.data()}));render()});
 </script>
 </body>
 </html>
