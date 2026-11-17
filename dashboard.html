@@ -12,6 +12,7 @@ h1{color:#6B0F2A;text-align:center;margin:10px 0 4px}
 .box h2{color:#6B0F2A;font-size:18px;margin-bottom:12px}
 input,select{width:100%;padding:12px;border:1px solid #ddd;border-radius:12px;margin-bottom:10px;font-size:14px}
 button{border:none;padding:12px;border-radius:20px;cursor:pointer;font-weight:bold}
+button:disabled{opacity:.6}
 .btn-add{width:100%;background:#6B0F2A;color:#fff}
 .btn-cat{width:100%;background:#C9A24B;color:#2B1A1A;margin-top:4px}
 .item{display:flex;justify-content:space-between;align-items:center;padding:10px 0;border-bottom:1px solid #eee;font-size:14px;gap:8px}
@@ -31,22 +32,18 @@ button{border:none;padding:12px;border-radius:20px;cursor:pointer;font-weight:bo
 .badge-pending{background:#FFF3CD;color:#856404}
 .badge-paid{background:#D4EDDA;color:#155724}
 .confirm-btn{background:#28a745;color:#fff;padding:8px 14px;border-radius:20px;font-size:12px;margin-top:8px}
+.hint{font-size:12px;color:#999;text-align:center;margin-top:6px}
 </style>
 </head>
 <body>
 <h1>LAILA - لوحة التحكم 💕</h1>
-<div class="box"><h2>🧾 الأوردرات</h2><div id="ordersList"></div></div>
+<div class="box"><h2>🧾 الأوردرات</h2><div id="ordersList">جاري التحميل...</div></div>
 <div class="box"><h2>📂 الأقسام</h2>
-<div id="catsList"></div>
+<div id="catsList">جاري التحميل...</div>
 <input id="newCat" placeholder="اسم قسم جديد - مثال: Scarves">
 <input id="newCatImage" type="file" accept="image/*">
 <img id="catPreview" style="width:80px;height:80px;object-fit:cover;border-radius:10px;display:none;margin-bottom:10px">
-<button class="btn-cat" onclick="addCategory()">➕ إضافة قسم بالصورة</button>
-</div>
-<div class="box"><h2>✨ صورة قسم All Products</h2>
-<img id="allPreview" style="width:80px;height:80px;object-fit:cover;border-radius:10px;display:none;margin-bottom:10px">
-<input id="allImage" type="file" accept="image/*">
-<button class="btn-cat" onclick="saveAllImage()">حفظ صورة All ✅</button>
+<button class="btn-cat" id="addCatBtn" onclick="addCategory()">➕ إضافة قسم بالصورة</button>
 </div>
 <div class="box"><h2 id="formTitle">➕ أضيفي منتج جديد</h2>
 <input id="pName" placeholder="اسم المنتج">
@@ -55,168 +52,109 @@ button{border:none;padding:12px;border-radius:20px;cursor:pointer;font-weight:bo
 <input id="pImage" type="file" accept="image/*">
 <img id="previewImg" style="width:80px;height:80px;object-fit:cover;border-radius:10px;display:none;margin-bottom:10px">
 <button class="btn-add" id="saveBtn" onclick="saveProduct()">حفظ المنتج ✅</button>
-<button class="cancel-btn" id="cancelBtn" onclick="cancelEdit()">إلغاء التعديل</button></div>
-<div class="box"><h2>📦 المنتجات</h2><div id="productsList"></div></div>
+<button class="cancel-btn" id="cancelBtn" onclick="cancelEdit()">إلغاء التعديل</button>
+<p class="hint" id="imgHint"></p></div>
+<div class="box"><h2>📦 المنتجات</h2><div id="productsList">جاري التحميل...</div></div>
 <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-firestore-compat.js"></script>
 <script>
-const firebaseConfig = {
-  apiKey: "AIzaSyCcSNVB5cnqtQluyWMyDX6I5q_dj7h6f2Y",
-  authDomain: "laila-store-2dc4c.firebaseapp.com",
-  projectId: "laila-store-2dc4c",
-  storageBucket: "laila-store-2dc4c.firebasestorage.app",
-  messagingSenderId: "450895782726",
-  appId: "1:450895782726:web:57e264ff703863d6583b47",
-  measurementId: "G-M9ZF3Y96DC"
-};
+const firebaseConfig = {apiKey:"AIzaSyCcSNVB5cnqtQluyWMyDX6I5q_dj7h6f2Y",authDomain:"laila-store-2dc4c.firebaseapp.com",projectId:"laila-store-2dc4c",storageBucket:"laila-store-2dc4c.firebasestorage.app",messagingSenderId:"450895782726",appId:"1:450895782726:web:57e264ff703863d6583b47",measurementId:"G-M9ZF3Y96DC"};
 firebase.initializeApp(firebaseConfig);
 const db = firebase.firestore();
-let products = [];
-let cats = [];
-let orders = [];
-let tempImage = ""; let tempCatImage = "";
-let editingId = null; let editingOldImage = "";
-let tempAllImage = localStorage.getItem('laila_all_image') || "";
-if(tempAllImage){ document.getElementById('allPreview').src=tempAllImage; document.getElementById('allPreview').style.display='block'; }
-
-// --- دي أهم حتة: ضغط أي صورة قبل ما تترفع، عشان المتجر ميقعدش دقيقتين ---
+let products=[]; let cats=[]; let orders=[];
+let tempImage=""; let tempCatImage=""; let imageReady=true; let catImageReady=true;
+let editingId=null; let editingOldImage="";
+function tsOf(d){return d&&d.createdAt&&d.createdAt.toMillis?d.createdAt.toMillis():0;}
 function compressImage(file, callback){
-  let r = new FileReader();
-  r.onload = function(ev){
-    let img = new Image();
-    img.onload = function(){
-      let canvas = document.createElement('canvas');
-      let max = 800;
-      let w = img.width, h = img.height;
-      if(w > max){ h = h * max / w; w = max; }
-      if(h > max){ w = w * max / h; h = max; }
-      canvas.width = w; canvas.height = h;
-      canvas.getContext('2d').drawImage(img, 0, 0, w, h);
-      // 0.6 يعني جودة 60%، كفاية جدا للمتجر، والصورة هتبقى 80 كيلو بدل 4 ميجا
-      callback(canvas.toDataURL('image/jpeg', 0.6));
-    };
-    img.src = ev.target.result;
-  };
+  let r=new FileReader();
+  r.onload=function(ev){let img=new Image();img.onload=function(){let canvas=document.createElement('canvas');let max=800;let w=img.width,h=img.height;if(w>max){h=h*max/w;w=max;}if(h>max){w=w*max/h;h=max;}canvas.width=w;canvas.height=h;canvas.getContext('2d').drawImage(img,0,0,w,h);callback(canvas.toDataURL('image/jpeg',0.6));};img.src=ev.target.result;};
   r.readAsDataURL(file);
 }
-
-document.getElementById('allImage').addEventListener('change', function(e){
-  let file = e.target.files[0]; if(!file) return;
-  compressImage(file, function(compressed){
-    tempAllImage = compressed; document.getElementById('allPreview').src=tempAllImage; document.getElementById('allPreview').style.display='block';
-  });
-});
-function saveAllImage(){
-  if(!tempAllImage){ alert('اختاري صورة الأول'); return; }
-  localStorage.setItem('laila_all_image', tempAllImage);
-  alert('تم حفظ صورة All ✅');
-}
-document.getElementById('pImage').addEventListener('change', function(e){
-  let file = e.target.files[0]; if(!file) return;
-  compressImage(file, function(compressed){
-    tempImage = compressed; document.getElementById('previewImg').src=tempImage; document.getElementById('previewImg').style.display='block';
-  });
-});
-document.getElementById('newCatImage').addEventListener('change', function(e){
-  let file = e.target.files[0]; if(!file) return;
-  compressImage(file, function(compressed){
-    tempCatImage = compressed; document.getElementById('catPreview').src=tempCatImage; document.getElementById('catPreview').style.display='block';
-  });
-});
-
-// --- بقى بيسمع دايركت، من غير ريفريش ---
+document.getElementById('pImage').addEventListener('change',function(e){let file=e.target.files[0];if(!file)return;imageReady=false;document.getElementById('saveBtn').disabled=true;document.getElementById('imgHint').innerText='جاري تجهيز الصورة... استني ثانية';compressImage(file,function(compressed){tempImage=compressed;document.getElementById('previewImg').src=tempImage;document.getElementById('previewImg').style.display='block';imageReady=true;document.getElementById('saveBtn').disabled=false;document.getElementById('imgHint').innerText='';});});
+document.getElementById('newCatImage').addEventListener('change',function(e){let file=e.target.files[0];if(!file)return;catImageReady=false;document.getElementById('addCatBtn').disabled=true;compressImage(file,function(compressed){tempCatImage=compressed;document.getElementById('catPreview').src=tempCatImage;document.getElementById('catPreview').style.display='block';catImageReady=true;document.getElementById('addCatBtn').disabled=false;});});
 function listenAll(){
-  db.collection("products").orderBy("createdAt","desc").onSnapshot(snap=>{
-    products=[]; snap.forEach(doc=>{ let d=doc.data(); d.id=doc.id; products.push(d); });
-    render();
+  db.collection("products").onSnapshot(snap=>{
+    products=[]; snap.forEach(doc=>{let d=doc.data();d.id=doc.id;d._t=tsOf(d);products.push(d);});
+    products.sort((a,b)=>b._t-a._t); render();
   });
-  db.collection("categories").orderBy("createdAt","asc").onSnapshot(async snap=>{
-    cats=[]; snap.forEach(doc=>{ let d=doc.data(); d.id=doc.id; cats.push(d); });
-    if(!cats.length){
-      let defaults = [{name:"Socks",image:""},{name:"Accessories",image:""},{name:"Pashmina",image:""}];
-      for(let c of defaults){ let ref=await db.collection("categories").add({...c, createdAt: firebase.firestore.FieldValue.serverTimestamp()}); }
-      return;
-    }
-    renderCats();
+  db.collection("categories").onSnapshot(snap=>{
+    cats=[]; snap.forEach(doc=>{let d=doc.data();d.id=doc.id;d._t=tsOf(d);cats.push(d);});
+    cats.sort((a,b)=>a._t-b._t); renderCats();
   });
-  db.collection("orders").orderBy("createdAt","desc").onSnapshot(snap=>{
-    orders=[]; snap.forEach(doc=>{ let d=doc.data(); d.id=doc.id; orders.push(d); });
-    renderOrders();
+  db.collection("orders").onSnapshot(snap=>{
+    orders=[]; snap.forEach(doc=>{let d=doc.data();d.id=doc.id;d._t=tsOf(d);orders.push(d);});
+    orders.sort((a,b)=>b._t-a._t); renderOrders();
   });
 }
 function renderCats(){
-  let sel = document.getElementById('pCat');
-  sel.innerHTML = cats.map(c=>`<option>${c.name}</option>`).join('');
-  document.getElementById('catsList').innerHTML = cats.map((c,i)=>`<div class="cat-row"><div class="cat-row-info">${c.image ? `<img src="${c.image}">` : '📂'}<span>${c.name}</span></div><button class="cat-del" onclick="delCategory('${c.id}')">حذف</button></div>`).join('');
+  let sel=document.getElementById('pCat');
+  if(!cats.length){sel.innerHTML='<option value="">مفيش أقسام - ضيفي قسم الأول</option>';document.getElementById('catsList').innerHTML='لسه مفيش أقسام';return;}
+  sel.innerHTML=cats.map(c=>`<option>${c.name}</option>`).join('');
+  if(editingId){let p=products.find(x=>x.id===editingId);if(p) sel.value=p.cat;}
+  document.getElementById('catsList').innerHTML=cats.map(c=>`<div class="cat-row"><div class="cat-row-info">${c.image?`<img src="${c.image}">`:'📂'}<span>${c.name}</span></div><button class="cat-del" onclick="delCategory('${c.id}')">حذف</button></div>`).join('');
 }
 async function addCategory(){
-  let v = document.getElementById('newCat').value.trim();
-  if(!v){ alert('اكتبي اسم القسم'); return; }
-  if(cats.find(c=>c.name===v)){ alert('القسم ده موجود'); return; }
-  try{
-    await db.collection("categories").add({name:v, image:tempCatImage||"", createdAt: firebase.firestore.FieldValue.serverTimestamp()});
-  }catch(e){ alert('مش اتحفظ، اتأكدي من الـ Rules'); return; }
-  document.getElementById('newCat').value=''; document.getElementById('newCatImage').value=''; tempCatImage=''; document.getElementById('catPreview').style.display='none';
+  let v=document.getElementById('newCat').value.trim();
+  if(!v){alert('اكتبي اسم القسم');return;}
+  if(cats.find(c=>c.name.toLowerCase()===v.toLowerCase())){alert('القسم ده موجود');return;}
+  if(!catImageReady){alert('استني الصورة تتجهز ثانية');return;}
+  try{await db.collection("categories").add({name:v, image:tempCatImage||"", createdAt:firebase.firestore.FieldValue.serverTimestamp()});}
+  catch(e){alert('مش اتحفظ، اتأكدي من الـ Rules');return;}
+  document.getElementById('newCat').value='';document.getElementById('newCatImage').value='';tempCatImage='';document.getElementById('catPreview').style.display='none';
   alert('تم إضافة القسم بالصورة ✅');
 }
-async function delCategory(id){ if(!confirm('تمسحي القسم ده؟')) return; try{ await db.collection("categories").doc(id).delete(); }catch(e){} }
+async function delCategory(id){if(!confirm('تمسحي القسم ده؟ المنتجات اللي جواه مش هتظهر في المتجر لحد ما تنقليها لقسم تاني'))return;try{await db.collection("categories").doc(id).delete();}catch(e){}}
 function render(){
-  if(!products.length){ document.getElementById('productsList').innerHTML='لسه مفيش منتجات'; }
-  else { document.getElementById('productsList').innerHTML = products.map((p)=>`<div class="item"><div class="item-info">${p.image ? `<img src="${p.image}" onclick="window.open(this.src)">` : '✨'}<span>${p.name}<br><small>${p.cat} - ${p.price} EGP</small></span></div><div class="btns"><button class="edit" onclick="editProduct('${p.id}')">تعديل ✏️</button><button class="del" onclick="delProduct('${p.id}')">حذف</button></div></div>`).join(''); }
+  if(!products.length){document.getElementById('productsList').innerHTML='لسه مفيش منتجات';return;}
+  document.getElementById('productsList').innerHTML=products.map(p=>`<div class="item"><div class="item-info">${p.image?`<img src="${p.image}" onclick="window.open(this.src)">`:'✨'}<span>${p.name}<br><small>${p.cat||''} - ${p.price} EGP</small></span></div><div class="btns"><button class="edit" onclick="editProduct('${p.id}')">تعديل ✏️</button><button class="del" onclick="delProduct('${p.id}')">حذف</button></div></div>`).join('');
 }
 function editProduct(id){
-  let p = products.find(x=>x.id===id); if(!p) return;
-  editingId = id; editingOldImage = p.image || "";
-  document.getElementById('pName').value = p.name; document.getElementById('pPrice').value = p.price; document.getElementById('pCat').value = p.cat;
-  if(p.image){ document.getElementById('previewImg').src=p.image; document.getElementById('previewImg').style.display='block'; }
-  document.getElementById('formTitle').innerText = '✏️ تعديل: ' + p.name;
-  document.getElementById('saveBtn').innerText = 'حفظ التعديل ✅';
-  document.getElementById('cancelBtn').style.display='block'; tempImage = ""; window.scrollTo(0,0);
+  let p=products.find(x=>x.id===id);if(!p)return;
+  editingId=id;editingOldImage=p.image||"";
+  document.getElementById('pName').value=p.name;document.getElementById('pPrice').value=p.price;document.getElementById('pCat').value=p.cat;
+  if(p.image){document.getElementById('previewImg').src=p.image;document.getElementById('previewImg').style.display='block';}
+  document.getElementById('formTitle').innerText='✏️ تعديل: '+p.name;
+  document.getElementById('saveBtn').innerText='حفظ التعديل ✅';
+  document.getElementById('cancelBtn').style.display='block';tempImage="";window.scrollTo(0,0);
 }
 function cancelEdit(){
-  editingId = null; tempImage=""; editingOldImage="";
-  document.getElementById('pName').value=''; document.getElementById('pPrice').value=''; document.getElementById('pImage').value='';
-  document.getElementById('previewImg').style.display='none';
+  editingId=null;tempImage="";editingOldImage="";
+  document.getElementById('pName').value='';document.getElementById('pPrice').value='';document.getElementById('pImage').value='';
+  document.getElementById('previewImg').style.display='none';document.getElementById('imgHint').innerText='';
   document.getElementById('formTitle').innerText='➕ أضيفي منتج جديد';
   document.getElementById('saveBtn').innerText='حفظ المنتج ✅';
   document.getElementById('cancelBtn').style.display='none';
 }
 async function saveProduct(){
-  let n=document.getElementById('pName').value.trim(); let pr=document.getElementById('pPrice').value.trim(); let c=document.getElementById('pCat').value;
-  if(!n||!pr){ alert('اكتبي الاسم والسعر'); return; }
-  let img = tempImage || editingOldImage || "";
+  let n=document.getElementById('pName').value.trim();let pr=document.getElementById('pPrice').value.trim();let c=document.getElementById('pCat').value;
+  if(!n||!pr){alert('اكتبي الاسم والسعر');return;}
+  if(!c){alert('ضيفي قسم الأول، وبعدين اختاريه');return;}
+  if(!imageReady){alert('استني الصورة تتجهز ثانية');return;}
+  let img=tempImage||editingOldImage||"";
   try{
-    if(editingId){
-      await db.collection("products").doc(editingId).update({name:n, price:Number(pr), cat:c, image:img});
-      alert('تم التعديل ✅');
-    } else {
-      await db.collection("products").add({name:n, price:Number(pr), cat:c, image:img, emoji:'✨', createdAt: firebase.firestore.FieldValue.serverTimestamp()});
-      alert('تم ✅ اتحفظ في Firebase');
-    }
-  }catch(e){ console.log(e); alert('مش اتحفظ - اتأكدي ان Rules معمولة Test Mode'); return; }
+    if(editingId){await db.collection("products").doc(editingId).update({name:n,price:Number(pr),cat:c,image:img});alert('تم التعديل ✅');}
+    else{await db.collection("products").add({name:n,price:Number(pr),cat:c,image:img,createdAt:firebase.firestore.FieldValue.serverTimestamp()});alert('تم ✅ اتحفظ في Firebase');}
+  }catch(e){console.log(e);alert('مش اتحفظ - اتأكدي ان Rules معمولة Test Mode');return;}
   cancelEdit();
 }
-async function delProduct(id){ if(!confirm('تمسحي؟')) return; try{ await db.collection("products").doc(id).delete(); }catch(e){} }
+async function delProduct(id){if(!confirm('تمسحي؟'))return;try{await db.collection("products").doc(id).delete();}catch(e){}}
 function renderOrders(){
-  let box = document.getElementById('ordersList');
-  if(!orders.length){ box.innerHTML='لسه مفيش أوردرات'; return; }
-  box.innerHTML = orders.map((o)=>{
-    let status = o.status || 'pending';
-    let badge = status==='paid' ? '<span class="badge badge-paid">مدفوع 🟢</span>' : '<span class="badge badge-pending">معلّق 🟡</span>';
-    let confirmBtn = status!=='paid' ? `<button class="confirm-btn" onclick="confirmOrder('${o.id}')">تأكيد الدفع ✅</button>` : '';
-    let name = o.customer_name || o.name || '';
-    let items = o.product || o.items || '';
-    let total = o.total_price ?? o.total ?? '';
-    let dateStr = o.createdAt && o.createdAt.toDate ? o.createdAt.toDate().toLocaleString('ar-EG') : (o.date||'');
-    let shot = o.shot || '';
-    return `<div class="order-card">${badge}<br><b>${name}</b><br>📱 ${o.phone||''}<br>📍 ${o.gov||''} - ${o.address||''}<br>🛍️ ${items}<br><b>التوتال: ${total} EGP</b><br><small>${dateStr}</small>${shot ? `<img src="${shot}" onclick="window.open(this.src)">` : ''}<br><div style="display:flex;gap:8px">${confirmBtn}<button class="del" onclick="delOrder('${o.id}')">حذف الأوردر</button></div></div>`;
+  let box=document.getElementById('ordersList');
+  if(!orders.length){box.innerHTML='لسه مفيش أوردرات';return;}
+  box.innerHTML=orders.map(o=>{
+    let status=o.status||'pending';
+    let badge=status==='paid'?'<span class="badge badge-paid">مدفوع 🟢</span>':'<span class="badge badge-pending">معلّق 🟡</span>';
+    let confirmBtn=status!=='paid'?`<button class="confirm-btn" onclick="confirmOrder('${o.id}')">تأكيد الدفع ✅</button>`:'';
+    let name=o.customer_name||o.name||'';
+    let items=o.product||o.items||'';
+    let total=o.total_price??o.total??'';
+    let dateStr=o.createdAt&&o.createdAt.toDate?o.createdAt.toDate().toLocaleString('ar-EG'):(o.date||'');
+    let shot=o.shot||'';
+    return `<div class="order-card">${badge}<br><b>${name}</b><br>📱 ${o.phone||''}<br>📍 ${o.gov||''} - ${o.address||''}<br>🛍️ ${items}<br><b>التوتال: ${total} EGP</b><br><small>${dateStr}</small>${shot?`<img src="${shot}" onclick="window.open(this.src)">`:''}<br><div style="display:flex;gap:8px">${confirmBtn}<button class="del" onclick="delOrder('${o.id}')">حذف الأوردر</button></div></div>`;
   }).join('');
 }
-async function confirmOrder(id){
-  try{ await db.collection("orders").doc(id).update({status:'paid'}); }catch(e){}
-  alert('تم تأكيد الدفع ✅ بقي مدفوع');
-}
-async function delOrder(id){ if(!confirm('تمسحي الأوردر ده؟')) return; try{ await db.collection("orders").doc(id).delete(); }catch(e){} }
+async function confirmOrder(id){try{await db.collection("orders").doc(id).update({status:'paid'});}catch(e){}alert('تم تأكيد الدفع ✅ بقي مدفوع');}
+async function delOrder(id){if(!confirm('تمسحي الأوردر ده؟'))return;try{await db.collection("orders").doc(id).delete();}catch(e){}}
 listenAll();
 </script>
 </body>
