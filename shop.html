@@ -53,8 +53,8 @@ input,textarea{width:100%;padding:12px;border:1px solid #ddd;border-radius:12px;
 <body>
 <div class="header"><div class="logo">LAILA</div><div style="display:flex;gap:8px"><button class="about-btn" onclick="openAbout()">About</button><button class="my-cart" onclick="openCart()">My Cart 🛒 (<span id="cartCount">0</span>)</button></div></div>
 <div class="line"></div>
-<div id="catsView"><div class="title">Shop Our Collection</div><div class="cats-grid" id="catsGrid"></div></div>
-<div id="productsView"><button class="back" onclick="goBack()">← Back to Categories</button><div class="title" id="catTitle">Socks</div><div class="products-grid" id="grid"></div></div>
+<div id="catsView"><div class="title">Shop Our Collection</div><div class="cats-grid" id="catsGrid"></div><p id="catsEmpty" style="display:none;text-align:center;color:#999;padding:20px">لسه مفيش أقسام، ضيفي قسم من الداش بورد</p></div>
+<div id="productsView"><button class="back" onclick="goBack()">← Back to Categories</button><div class="title" id="catTitle"></div><div class="products-grid" id="grid"></div></div>
 <div class="overlay" id="aboutOverlay" onclick="if(event.target===this) closeAbout()"><div class="cart-box"><iframe id="aboutFrame" class="about-frame" src=""></iframe><button class="close-btn" onclick="closeAbout()">Back to Shop</button></div></div>
 <div class="overlay" id="cartOverlay" onclick="if(event.target===this) closeCart()"><div class="cart-box"><h2>My Cart 🛒</h2><div id="cartItems"></div><div class="total" id="cartTotal"></div><button class="checkout-btn" onclick="showCheckout()">Checkout →</button><button class="close-btn" onclick="closeCart()">Close</button></div></div>
 <div class="overlay" id="checkoutOverlay" onclick="if(event.target===this) closeCheckout()"><div class="cart-box"><h2>Checkout 💕</h2><p id="checkoutTotal" style="margin-bottom:12px;color:#6B0F2A;font-weight:bold"></p>
@@ -71,51 +71,45 @@ input,textarea{width:100%;padding:12px;border:1px solid #ddd;border-radius:12px;
 const firebaseConfig = {apiKey:"AIzaSyCcSNVB5cnqtQluyWMyDX6I5q_dj7h6f2Y",authDomain:"laila-store-2dc4c.firebaseapp.com",projectId:"laila-store-2dc4c",storageBucket:"laila-store-2dc4c.firebasestorage.app",messagingSenderId:"450895782726",appId:"1:450895782726:web:57e264ff703863d6583b47",measurementId:"G-M9ZF3Y96DC"};
 firebase.initializeApp(firebaseConfig);
 const db = firebase.firestore();
-let products=[]; let cats=[]; let cart=[]; let currentCat='All'; let tempPayShot="";
-
+let cats=[]; let products=[]; let cart=[]; let currentCat=''; let tempPayShot="";
 function idb(){return new Promise((res,rej)=>{let r=indexedDB.open('laila_db',1);r.onupgradeneeded=()=>{r.result.createObjectStore('store');};r.onsuccess=()=>res(r.result);r.onerror=()=>rej(r.error);});}
-async function idbGet(key){try{let d=await idb();return new Promise((res)=>{let tx=d.transaction('store','readonly').objectStore('store').get(key);tx.onsuccess=()=>res(tx.result||null);tx.onerror=()=>res(null);});}catch(e){return null;}}
-async function idbSet(key,val){try{let d=await idb();let tx=d.transaction('store','readwrite').objectStore('store').put(val,key);tx.onerror=()=>{};}catch(e){}}
-
-// افتح فورا من المتحفظ، زي أي ويب سايت
+async function idbGet(k){try{let d=await idb();return new Promise((res)=>{let tx=d.transaction('store','readonly').objectStore('store').get(k);tx.onsuccess=()=>res(tx.result||null);tx.onerror=()=>res(null);});}catch(e){return null;}}
+async function idbSet(k,v){try{let d=await idb();let tx=d.transaction('store','readwrite').objectStore('store').put(v,k);tx.onerror=()=>{};}catch(e){}}
+function tsOf(d){return d&&d.createdAt&&d.createdAt.toMillis?d.createdAt.toMillis():0;}
 idbGet('cats').then(c=>{ if(c&&c.length){ cats=c; renderCats(); } });
-idbGet('products').then(p=>{ if(p&&p.length){ products=p; if(document.getElementById('productsView').style.display==='block') renderProducts(); } });
-
-function getCatOf(p){return (p.cat||p.category||p.catName||'').toString().trim();}
-function openAbout(){let frame=document.getElementById('aboutFrame');frame.src='about.html';frame.onload=function(){try{let doc=frame.contentDocument||frame.contentWindow.document;doc.querySelectorAll('button, a').forEach(b=>{let t=(b.innerText||'').trim();if(t.includes('Back to Shop')||t.includes('Start shopping'))b.style.display='none';});}catch(e){}};document.getElementById('aboutOverlay').classList.add('open');}
+idbGet('products').then(p=>{ if(p&&p.length){ products=p; } });
+function getCatOf(p){return (p.cat||p.category||'').toString().trim();}
+function openAbout(){document.getElementById('aboutFrame').src='about.html';document.getElementById('aboutOverlay').classList.add('open');}
 function closeAbout(){document.getElementById('aboutOverlay').classList.remove('open');}
 document.getElementById('fPayShot').addEventListener('change',function(e){let file=e.target.files[0];if(!file)return;let r=new FileReader();r.onload=function(ev){let img=new Image();img.onload=function(){let c=document.createElement('canvas');let max=800;let w=img.width,h=img.height;if(w>max){h=h*max/w;w=max;}if(h>max){w=w*max/h;h=max;}c.width=w;c.height=h;c.getContext('2d').drawImage(img,0,0,w,h);tempPayShot=c.toDataURL('image/jpeg',0.6);document.getElementById('payPreview').src=tempPayShot;document.getElementById('payPreview').style.display='block';};img.src=ev.target.result;};r.readAsDataURL(file);});
 function openImage(src){document.getElementById('bigImg').src=src;document.getElementById('imgOverlay').classList.add('open');}
 function closeImage(){document.getElementById('imgOverlay').classList.remove('open');}
-
-// الأقسام من categories زي الداش بورد بالظبط
-db.collection("categories").orderBy("createdAt","asc").onSnapshot(snap=>{
-  if(snap.empty) return;
-  let data=[]; snap.forEach(doc=>{let d=doc.data();d.id=doc.id;data.push(d);});
+db.collection("categories").onSnapshot(snap=>{
+  let data=[]; snap.forEach(doc=>{let d=doc.data(); if(d.name) data.push({id:doc.id, name:d.name, image:d.image||"", _t:tsOf(d)});});
+  data.sort((a,b)=>a._t-b._t);
   cats=data; renderCats(); idbSet('cats',cats);
-},err=>{});
-db.collection("products").orderBy("createdAt","desc").onSnapshot(snap=>{
-  if(snap.empty) return;
-  let data=[]; snap.forEach(doc=>{let d=doc.data();d.id=doc.id;data.push(d);});
+});
+db.collection("products").onSnapshot(snap=>{
+  let data=[]; snap.forEach(doc=>{let d=doc.data();d.id=doc.id;d._t=tsOf(d);data.push(d);});
+  data.sort((a,b)=>b._t-a._t);
   products=data; idbSet('products',products);
   if(document.getElementById('productsView').style.display==='block') renderProducts();
-},err=>{});
-
+});
 function getCatImage(n){let f=cats.find(c=>c.name===n);if(f&&f.image)return `<img src="${f.image}" loading="lazy">`;let pf=products.find(p=>getCatOf(p)===n&&p.image);if(pf)return `<img src="${pf.image}" loading="lazy">`;return `<div class="empty-img">LAILA</div>`;}
-function renderCats(){let g=document.getElementById('catsGrid');if(!cats.length) return;let html=cats.map(c=>`<div class="cat-card"><div class="img">${getCatImage(c.name)}</div><h3>${c.name}</h3><button onclick="openCat('${c.name}')">Shop Now →</button></div>`).join('');g.innerHTML=html;}
+function renderCats(){let g=document.getElementById('catsGrid');let e=document.getElementById('catsEmpty');if(!cats.length){g.innerHTML='';e.style.display='block';return;}e.style.display='none';g.innerHTML=cats.map(c=>`<div class="cat-card"><div class="img">${getCatImage(c.name)}</div><h3>${c.name}</h3><button onclick="openCat('${c.name.replace(/'/g,"\\'")}')">Shop Now →</button></div>`).join('');}
 function openCat(cat){currentCat=cat;document.getElementById('catsView').style.display='none';document.getElementById('productsView').style.display='block';document.getElementById('catTitle').innerText=cat;renderProducts();window.scrollTo(0,0);}
 function goBack(){document.getElementById('productsView').style.display='none';document.getElementById('catsView').style.display='block';}
 function updateCount(){document.getElementById('cartCount').innerText=cart.reduce((s,i)=>s+i.qty,0);}
 function getTotal(){return cart.reduce((s,i)=>s+i.price*i.qty,0);}
-function renderProducts(){let g=document.getElementById('grid');if(!products.length){g.innerHTML='<p style="text-align:center;color:#999;padding:20px">لسه مفيش منتجات في القسم ده</p>';return;}let list=products.filter(p=>getCatOf(p)===currentCat);if(!list.length){g.innerHTML='<p style="text-align:center;color:#999;padding:20px">لسه مفيش منتجات في القسم ده</p>';return;}g.innerHTML='';list.forEach(p=>{let inCart=cart.find(i=>i.name===p.name);let btnHtml=inCart?`<div class="qty-box"><button onclick="changeQtyByName('${p.name.replace(/'/g,"\\'")}',-1)">-</button><b>${inCart.qty}</b><button onclick="changeQtyByName('${p.name.replace(/'/g,"\\'")}',1)">+</button></div>`:`<button onclick="addToCart('${p.name.replace(/'/g,"\\'")}',${p.price||0})">Add to Cart</button>`;let imgHtml=p.image?`<img src="${p.image}" loading="lazy">`:`<div class="empty-img" style="height:110px">LAILA</div>`;let imgDiv=p.image?`<div class="img" onclick="openImage('${p.image}')">${imgHtml}</div>`:`<div class="img">${imgHtml}</div>`;g.innerHTML+=`<div class="p-card">${imgDiv}<h4>${p.name}</h4><div class="price">${p.price||0} EGP</div>${btnHtml}</div>`;});}
-function addToCart(name,price){let f=cart.find(i=>i.name===name);if(f)f.qty++;else cart.push({name,price,qty:1});updateCount();renderProducts();}
-function changeQtyByName(name,delta){let it=cart.find(i=>i.name===name);if(!it)return;it.qty+=delta;if(it.qty<=0)cart=cart.filter(i=>i.name!==name);updateCount();renderProducts();if(document.getElementById('cartOverlay').classList.contains('open'))openCart();}
+function renderProducts(){let g=document.getElementById('grid');let list=products.filter(p=>getCatOf(p)===currentCat);if(!list.length){g.innerHTML='<p style="text-align:center;color:#999;padding:20px">لسه مفيش منتجات في القسم ده</p>';return;}g.innerHTML='';list.forEach(p=>{let inCart=cart.find(i=>i.id===p.id);let btnHtml=inCart?`<div class="qty-box"><button onclick="changeQtyById('${p.id}',-1)">-</button><b>${inCart.qty}</b><button onclick="changeQtyById('${p.id}',1)">+</button></div>`:`<button onclick="addToCart('${p.id}')">Add to Cart</button>`;let imgHtml=p.image?`<img src="${p.image}" loading="lazy">`:`<div class="empty-img" style="height:110px">LAILA</div>`;let imgDiv=p.image?`<div class="img" onclick="openImage('${p.image}')">${imgHtml}</div>`:`<div class="img">${imgHtml}</div>`;g.innerHTML+=`<div class="p-card">${imgDiv}<h4>${p.name}</h4><div class="price">${p.price||0} EGP</div>${btnHtml}</div>`;});}
+function addToCart(id){let p=products.find(x=>x.id===id);if(!p)return;let f=cart.find(i=>i.id===id);if(f)f.qty++;else cart.push({id:id,name:p.name,price:Number(p.price||0),qty:1});updateCount();renderProducts();}
+function changeQtyById(id,delta){let it=cart.find(i=>i.id===id);if(!it)return;it.qty+=delta;if(it.qty<=0)cart=cart.filter(i=>i.id!==id);updateCount();renderProducts();if(document.getElementById('cartOverlay').classList.contains('open'))openCart();}
 function changeQty(idx,delta){cart[idx].qty+=delta;if(cart[idx].qty<=0)cart.splice(idx,1);updateCount();renderProducts();openCart();}
 function openCart(){let box=document.getElementById('cartItems');if(cart.length===0){box.innerHTML='<p style="text-align:center;color:#999;padding:20px">الكارت فاضي</p>';document.getElementById('cartTotal').innerText='';}else{box.innerHTML='';cart.forEach((item,idx)=>{box.innerHTML+=`<div class="cart-item"><span>${item.name}<br><small>${item.price} EGP</small></span><div class="qty-box"><button onclick="changeQty(${idx},-1)">-</button><b>${item.qty}</b><button onclick="changeQty(${idx},1)">+</button></div><span>${item.price*item.qty} EGP</span></div>`;});document.getElementById('cartTotal').innerText='Total: '+getTotal()+' EGP';}document.getElementById('cartOverlay').classList.add('open');}
 function closeCart(){document.getElementById('cartOverlay').classList.remove('open');}
 function showCheckout(){if(cart.length===0){alert('الكارت فاضي');return;}closeCart();document.getElementById('checkoutTotal').innerText='Total: '+getTotal()+' EGP';document.getElementById('msg').innerText='';document.getElementById('checkoutOverlay').classList.add('open');}
 function closeCheckout(){document.getElementById('checkoutOverlay').classList.remove('open');}
-async function sendOrder(){let name=document.getElementById('fName').value.trim();let phone=document.getElementById('fPhone').value.trim();let gov=document.getElementById('fGov').value.trim();let address=document.getElementById('fAddress').value.trim();if(!name||!phone||!address||!gov){document.getElementById('msg').innerText='اكتبي الاسم والموبايل والمحافظة والعنوان';return;}if(!tempPayShot){document.getElementById('msg').innerText='ارفعي سكرين شوت الدفع الأول 📸';return;}let productNames=cart.map(i=>i.name+' x'+i.qty).join(', ');let totalQty=cart.reduce((s,i)=>s+i.qty,0);document.getElementById('msg').innerText='تم استلام طلبك بنجاح 🎉 هنأكده أول ما نتأكد من التحويل 💕';let orders=JSON.parse(localStorage.getItem('laila_orders')||'[]');orders.unshift({name:name,phone:phone,gov:gov,address:address,items:productNames,total:getTotal(),shot:tempPayShot,status:'pending',date:new Date().toLocaleString('ar-EG')});localStorage.setItem('laila_orders',JSON.stringify(orders));try{await db.collection("orders").add({customer_name:name,phone:phone,gov:gov,address:address,product:productNames,quantity:totalQty,total_price:getTotal(),status:'pending',shot:tempPayShot,createdAt:firebase.firestore.FieldValue.serverTimestamp()});}catch(e){console.log(e);}cart=[];updateCount();renderProducts();tempPayShot="";document.getElementById('fPayShot').value='';document.getElementById('payPreview').style.display='none';setTimeout(()=>{closeCheckout();},2500);}
+async function sendOrder(){let name=document.getElementById('fName').value.trim();let phone=document.getElementById('fPhone').value.trim();let gov=document.getElementById('fGov').value.trim();let address=document.getElementById('fAddress').value.trim();if(!name||!phone||!address||!gov){document.getElementById('msg').innerText='اكتبي الاسم والموبايل والمحافظة والعنوان';return;}if(!tempPayShot){document.getElementById('msg').innerText='ارفعي سكرين شوت الدفع الأول 📸';return;}let productNames=cart.map(i=>i.name+' x'+i.qty).join(', ');let totalQty=cart.reduce((s,i)=>s+i.qty,0);document.getElementById('msg').innerText='تم استلام طلبك بنجاح 🎉 هنأكده أول ما نتأكد من التحويل 💕';try{await db.collection("orders").add({customer_name:name,phone:phone,gov:gov,address:address,product:productNames,quantity:totalQty,total_price:getTotal(),status:'pending',shot:tempPayShot,createdAt:firebase.firestore.FieldValue.serverTimestamp()});}catch(e){console.log(e);}cart=[];updateCount();renderProducts();tempPayShot="";document.getElementById('fPayShot').value='';document.getElementById('payPreview').style.display='none';setTimeout(()=>{closeCheckout();},2500);}
 </script>
 </body>
 </html>
