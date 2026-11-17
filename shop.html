@@ -72,30 +72,58 @@ const firebaseConfig = {apiKey:"AIzaSyCcSNVB5cnqtQluyWMyDX6I5q_dj7h6f2Y",authDom
 firebase.initializeApp(firebaseConfig);
 const db = firebase.firestore();
 let products=[]; let cats=[]; let cart=[]; let currentCat='All'; let tempPayShot="";
+let hasLoadedFromFirebase = false;
+
+// 1. افتح من الكاش بس لو فيه منتجات بجد، لو فاضي متعرضش حاجة غلط
 try{
   let cp=JSON.parse(localStorage.getItem('laila_cache_products')||'[]');
   let cc=JSON.parse(localStorage.getItem('laila_cache_cats')||'[]');
-  if(cp.length) products=cp;
-  if(cc.length) cats=cc;
-}catch(e){}
+  if(Array.isArray(cp) && cp.length && cp[0] && cp[0].name){ products=cp; }
+  if(Array.isArray(cc) && cc.length && cc[0] && cc[0].name){ cats=cc; }
+}catch(e){ products=[]; cats=[]; }
+
 function getCatOf(p){return (p.cat||p.category||p.catName||'').toString().trim();}
 function buildCatsFromProducts(){let seen={};let list=[];products.forEach(p=>{let n=getCatOf(p);if(!n||seen[n])return;seen[n]=1;list.push({name:n,image:p.image||""});});return list;}
-function syncCats(){cats=buildCatsFromProducts();cats.forEach(c=>{if(!c.image){let f=products.find(p=>getCatOf(p)===c.name&&p.image);if(f)c.image=f.image;}});}
-function saveCache(){try{
-  let light=products.map(p=>({id:p.id,name:p.name,price:p.price,cat:getCatOf(p),category:getCatOf(p),image:p.image||''}));
-  localStorage.setItem('laila_cache_products',JSON.stringify(light));
-  localStorage.setItem('laila_cache_cats',JSON.stringify(cats));
-}catch(e){}}
+function syncCats(){let built=buildCatsFromProducts(); if(built.length){ cats=built; cats.forEach(c=>{if(!c.image){let f=products.find(p=>getCatOf(p)===c.name&&p.image);if(f)c.image=f.image;}}); }}
+
+// 2. احفظ في الكاش بس لو فيه منتجات بجد، اوعي تحفظ الفاضي وتمسح السليم
+function saveCache(){
+  if(!products.length) return;
+  try{
+    localStorage.setItem('laila_cache_products',JSON.stringify(products));
+    localStorage.setItem('laila_cache_cats',JSON.stringify(cats));
+  }catch(e){}
+}
+
 function openAbout(){let frame=document.getElementById('aboutFrame');frame.src='about.html';frame.onload=function(){try{let doc=frame.contentDocument||frame.contentWindow.document;doc.querySelectorAll('button, a').forEach(b=>{let t=(b.innerText||'').trim();if(t.includes('Back to Shop')||t.includes('Start shopping'))b.style.display='none';});}catch(e){}};document.getElementById('aboutOverlay').classList.add('open');}
 function closeAbout(){document.getElementById('aboutOverlay').classList.remove('open');}
 document.getElementById('fPayShot').addEventListener('change',function(e){let file=e.target.files[0];if(!file)return;let r=new FileReader();r.onload=function(ev){let img=new Image();img.onload=function(){let c=document.createElement('canvas');let max=800;let w=img.width,h=img.height;if(w>max){h=h*max/w;w=max;}if(h>max){w=w*max/h;h=max;}c.width=w;c.height=h;c.getContext('2d').drawImage(img,0,0,w,h);tempPayShot=c.toDataURL('image/jpeg',0.6);document.getElementById('payPreview').src=tempPayShot;document.getElementById('payPreview').style.display='block';};img.src=ev.target.result;};r.readAsDataURL(file);});
 function openImage(src){document.getElementById('bigImg').src=src;document.getElementById('imgOverlay').classList.add('open');}
 function closeImage(){document.getElementById('imgOverlay').classList.remove('open');}
+
+// 3. اسمع Firebase، بس لو رجع فاضي تجاهله تماما، متمسحش اللي ظاهر
+function applyFirebaseData(data){
+  if(!data || !data.length) return;
+  products=data; syncCats(); saveCache(); renderCats();
+  if(document.getElementById('productsView').style.display==='block') renderProducts();
+}
 db.collection("products").onSnapshot(snap=>{
-  if(snap.empty){ return; }
+  if(snap.empty) return;
   let data=[]; snap.forEach(doc=>{let d=doc.data();d.id=doc.id;data.push(d);});
-  products=data; syncCats(); saveCache(); renderCats(); if(document.getElementById('productsView').style.display==='block') renderProducts();
+  hasLoadedFromFirebase = true;
+  applyFirebaseData(data);
 },err=>{ console.log(err); });
+
+// 4. لو onSnapshot معلق، اجبره يجيب مرة واحدة بـ get
+setTimeout(()=>{
+  if(hasLoadedFromFirebase) return;
+  db.collection("products").get().then(snap=>{
+    if(snap.empty) return;
+    let data=[]; snap.forEach(doc=>{let d=doc.data();d.id=doc.id;data.push(d);});
+    applyFirebaseData(data);
+  }).catch(e=>{ console.log(e); });
+}, 3000);
+
 function getCatImage(n){let f=cats.find(c=>c.name===n);if(f&&f.image)return `<img src="${f.image}" loading="lazy">`;return `<div class="empty-img">LAILA</div>`;}
 function renderCats(){let g=document.getElementById('catsGrid');if(!cats.length&&products.length)syncCats();if(!cats.length){g.innerHTML='<p style="text-align:center;color:#999;padding:20px">Loading...</p>';return;}let html=cats.map(c=>`<div class="cat-card"><div class="img">${getCatImage(c.name)}</div><h3>${c.name}</h3><button onclick="openCat('${c.name}')">Shop Now →</button></div>`).join('');g.innerHTML=html;}
 function openCat(cat){currentCat=cat;document.getElementById('catsView').style.display='none';document.getElementById('productsView').style.display='block';document.getElementById('catTitle').innerText=cat;renderProducts();window.scrollTo(0,0);}
