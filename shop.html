@@ -1,12 +1,6 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <script>
-const BUILD = "20261114-101";
-if (!location.search.includes(BUILD)) {
-  window.location.replace(location.pathname + "?v=" + BUILD);
-}
-  </script>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
@@ -56,6 +50,9 @@ input,textarea{width:100%;padding:12px;border:1px solid #ddd;border-radius:12px;
 .pay-box{background:#FFF8E7;border:1px dashed #C9A24B;border-radius:14px;padding:14px;margin-bottom:12px;text-align:center}
 .pay-box b{color:#6B0F2A;font-size:18px;letter-spacing:1px}
 .ship-box{background:#F5EFE6;border-radius:12px;padding:12px;margin-bottom:12px;font-size:13px;line-height:22px;text-align:right}
+.skeleton{background:#FFF8E7;border-radius:18px;height:200px;animation:pulse 1.2s infinite}
+.skeleton-p{background:#fff;border-radius:14px;height:225px;animation:pulse 1.2s infinite}
+@keyframes pulse{0%{opacity:1}50%{opacity:.5}100%{opacity:1}}
 </style>
 </head>
 <body>
@@ -89,9 +86,17 @@ const db = firebase.firestore();
 let products = [];
 let cats = [];
 let cart=[]; let currentCat='All'; let tempPayShot="";
-// امسح التخزين القديم اللي كان فيه Socks و Pashmina
-localStorage.removeItem('laila_cats');
-localStorage.removeItem('laila_products');
+let isLoaded = false;
+let hasCache = false;
+
+// 1 - اعرض الكاش القديم فورا لو موجود، عشان الصفحة متبقاش فاضية
+try{
+  let cp = JSON.parse(localStorage.getItem('laila_cache_products')||'[]');
+  let cc = JSON.parse(localStorage.getItem('laila_cache_cats')||'[]');
+  if(cp.length){ products = cp; hasCache = true; }
+  if(cc.length){ cats = cc; hasCache = true; }
+}catch(e){}
+
 document.getElementById('fPayShot').addEventListener('change', function(e){
   let file=e.target.files[0]; if(!file) return;
   let r=new FileReader();
@@ -115,33 +120,71 @@ document.getElementById('fPayShot').addEventListener('change', function(e){
 });
 function openImage(src){ document.getElementById('bigImg').src=src; document.getElementById('imgOverlay').classList.add('open'); }
 function closeImage(){ document.getElementById('imgOverlay').classList.remove('open'); }
+
+function saveCache(){
+  try{
+    localStorage.setItem('laila_cache_products', JSON.stringify(products));
+    localStorage.setItem('laila_cache_cats', JSON.stringify(cats));
+  }catch(e){}
+}
+
 async function loadFromNet(){
   try{
-    const snap = await db.collection("products").orderBy("createdAt","desc").get();
-    if(!snap.empty){
-      let data = [];
-      snap.forEach(doc=>{ let d=doc.data(); d.id=doc.id; data.push(d); });
-      products = data;
-      renderCats(); if(document.getElementById('productsView').style.display==='block') renderProducts();
-    }
-    const catSnap = await db.collection("categories").get();
-    if(!catSnap.empty){
-      let cData=[]; catSnap.forEach(doc=>{ cData.push(doc.data()); });
-      if(cData.length){ cats=cData; renderCats(); }
-    } else {
-      // لو مفيش اقسام في Firebase خالص، اعرض Accessories بس
-      cats=[{name:"Accessories", image:""}];
-      renderCats();
-    }
-  }catch(e){ console.log("Firebase load error", e); }
+    // حمّل المنتجات والأقسام مع بعض في نفس الوقت، مش واحد ورا التاني
+    const [snap, catSnap] = await Promise.all([
+      db.collection("products").orderBy("createdAt","desc").get(),
+      db.collection("categories").get()
+    ]);
+    let data = [];
+    snap.forEach(doc=>{ let d=doc.data(); d.id=doc.id; data.push(d); });
+    // متبدلش الداتا غير لو فعلا جت داتا، عشان متتمسحش لو النت قطع
+    if(data.length){ products = data; }
+    let cData=[]; catSnap.forEach(doc=>{ cData.push(doc.data()); });
+    if(cData.length){ cats=cData; }
+    else if(!cats.length){ cats=[{name:"Accessories", image:""}]; }
+    isLoaded = true;
+    saveCache();
+    renderCats();
+    if(document.getElementById('productsView').style.display==='block') renderProducts();
+  }catch(e){ 
+    console.log("Firebase load error", e); 
+    isLoaded = true; // حتى لو فشل، اعرض اللي عندك ومتفضلش معلق
+    renderCats();
+    if(document.getElementById('productsView').style.display==='block') renderProducts();
+  }
 }
+
+// تحديث لحظي من غير مسح: لو ضفتي منتج من الداشبورد يظهر لوحده من غير ريفريش
+db.collection("products").orderBy("createdAt","desc").onSnapshot(snap=>{
+  if(snap.empty) return;
+  let data=[]; snap.forEach(doc=>{ let d=doc.data(); d.id=doc.id; data.push(d); });
+  // لو نفس الداتا متعملهاش رندر تاني عشان ميحصلش وميض
+  if(JSON.stringify(data)===JSON.stringify(products)) return;
+  products=data; saveCache();
+  if(isLoaded || hasCache){
+    renderCats();
+    if(document.getElementById('productsView').style.display==='block') renderProducts();
+  }
+});
+db.collection("categories").onSnapshot(snap=>{
+  if(snap.empty) return;
+  let cData=[]; snap.forEach(doc=>{ cData.push(doc.data()); });
+  if(JSON.stringify(cData)===JSON.stringify(cats)) return;
+  cats=cData; saveCache(); renderCats();
+});
+
 function getCatImage(catName){
   let f = cats.find(c=>c.name===catName); if(f && f.image) return `<img src="${f.image}">`;
   let emojis={Socks:'🧦',Accessories:'💍',Pashmina:'🧣'}; return emojis[catName]||'✨';
 }
 function renderCats(){
   let g=document.getElementById('catsGrid');
-  if(!cats.length){ g.innerHTML='<p style="grid-column:1/3;text-align:center;color:#999;padding:20px">جاري تحميل الأقسام...</p>'; return; }
+  // لو لسه محملناش ولا عندنا كاش، اعرض شكل شيك بيحمل، مش كلام
+  if(!cats.length && !isLoaded && !hasCache){
+    g.innerHTML = '<div class="skeleton"></div><div class="skeleton"></div><div class="skeleton"></div><div class="skeleton"></div>';
+    return;
+  }
+  if(!cats.length){ cats=[{name:"Accessories", image:""}]; }
   let allImg = localStorage.getItem('laila_all_image') || "";
   let allCard = `<div class="cat-card"><div class="img">${allImg ? `<img src="${allImg}">` : '✨'}</div><h3>All Products</h3><button onclick="openCat('All')">Shop Now →</button></div>`;
   g.innerHTML = cats.map(c=>`<div class="cat-card"><div class="img">${getCatImage(c.name)}</div><h3>${c.name}</h3><button onclick="openCat('${c.name}')">Shop Now →</button></div>`).join('') + allCard;
@@ -151,13 +194,21 @@ function goBack(){ document.getElementById('productsView').style.display='none';
 function updateCount(){ document.getElementById('cartCount').innerText = cart.reduce((s,i)=>s+i.qty,0); }
 function getTotal(){ return cart.reduce((s,i)=>s+i.price*i.qty,0); }
 function renderProducts(){
-  let g=document.getElementById('grid'); g.innerHTML='';
+  let g=document.getElementById('grid');
+  // لسه بيحمل ولسه مفيش كاش: اعرض سكيليتون شيك، مش "مفيش منتجات"
+  if(!isLoaded && !hasCache && !products.length){
+    g.innerHTML = '<div class="skeleton-p"></div><div class="skeleton-p"></div><div class="skeleton-p"></div><div class="skeleton-p"></div><div class="skeleton-p"></div><div class="skeleton-p"></div>';
+    return;
+  }
   let list = currentCat==='All' ? products : products.filter(p=>p.cat===currentCat);
-  if(!list.length){ g.innerHTML='<p style="grid-column:1/4;text-align:center;color:#999">مفيش منتجات في القسم ده لسه</p>'; return; }
+  // اعرض "مفيش منتجات" بس بعد ما نكون خلصنا تحميل فعلا
+  if(!list.length && isLoaded){ g.innerHTML='<p style="grid-column:1/4;text-align:center;color:#999">مفيش منتجات في القسم ده لسه</p>'; return; }
+  if(!list.length) return;
+  g.innerHTML='';
   list.forEach((p)=>{
     let inCart = cart.find(i=>i.name===p.name);
     let btnHtml = inCart ? `<div class="qty-box"><button onclick="changeQtyByName('${p.name.replace(/'/g,"\\'")}',-1)">-</button><b>${inCart.qty}</b><button onclick="changeQtyByName('${p.name.replace(/'/g,"\\'")}',1)">+</button></div>` : `<button onclick="addToCart('${p.name.replace(/'/g,"\\'")}',${p.price})">Add to Cart</button>`;
-    let imgHtml = p.image ? `<img src="${p.image}">` : '✨';
+    let imgHtml = p.image ? `<img src="${p.image}" loading="lazy">` : '✨';
     let imgDiv = p.image ? `<div class="img" onclick="openImage('${p.image}')">${imgHtml}</div>` : `<div class="img">${imgHtml}</div>`;
     g.innerHTML+=`<div class="p-card">${imgDiv}<h4>${p.name}</h4><div class="price">${p.price} EGP</div>${btnHtml}</div>`;
   });
