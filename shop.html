@@ -46,7 +46,7 @@ input,textarea{width:100%;padding:12px;border:1px solid #ddd;border-radius:12px;
 .pay-box{background:#FFF8E7;border:1px dashed #C9A24B;border-radius:14px;padding:14px;margin-bottom:12px;text-align:center}
 .pay-box b{color:#6B0F2A;font-size:18px;letter-spacing:1px}
 .ship-box{background:#F5EFE6;border-radius:12px;padding:12px;margin-bottom:12px;font-size:13px;line-height:22px;text-align:right}
-.empty-img{width:100%;height:100%;display:flex;align-items:center;justify-content:center;background:#F5EFE6;color:#6B0F2A;font-size:22px;letter-spacing:4px;font-weight:bold}
+.empty-img{width:100%;height:140px;display:flex;align-items:center;justify-content:center;background:#F5EFE6;color:#6B0F2A;font-size:22px;letter-spacing:4px;font-weight:bold}
 .about-frame{width:100%;height:70vh;border:none;border-radius:14px;background:#fff}
 </style>
 </head>
@@ -82,7 +82,7 @@ function getCatOf(p){return (p.cat||p.category||p.catName||'').toString().trim()
 function buildCatsFromProducts(){let seen={};let list=[];products.forEach(p=>{let n=getCatOf(p);if(!n||seen[n])return;seen[n]=1;list.push({name:n,image:p.image||""});});return list;}
 function syncCats(){cats=buildCatsFromProducts();cats.forEach(c=>{if(!c.image){let f=products.find(p=>getCatOf(p)===c.name&&p.image);if(f)c.image=f.image;}});}
 function saveCache(){try{
-  let light=products.map(p=>({id:p.id,name:p.name,price:p.price,cat:getCatOf(p),category:getCatOf(p),image:(p.image&&p.image.length<20000)?p.image:''}));
+  let light=products.map(p=>({id:p.id,name:p.name,price:p.price,cat:getCatOf(p),category:getCatOf(p),image:p.image||''}));
   localStorage.setItem('laila_cache_products',JSON.stringify(light));
   localStorage.setItem('laila_cache_cats',JSON.stringify(cats));
 }catch(e){}}
@@ -94,9 +94,6 @@ function closeImage(){document.getElementById('imgOverlay').classList.remove('op
 db.collection("products").onSnapshot(snap=>{
   if(snap.empty){ if(!products.length) document.getElementById('catsGrid').innerHTML='<p style="text-align:center;color:#999;padding:20px">No products yet</p>'; return; }
   let data=[]; snap.forEach(doc=>{let d=doc.data();d.id=doc.id;data.push(d);});
-  if(JSON.stringify(data.map(d=>d.id+d.name+d.price))===JSON.stringify(products.map(d=>d.id+d.name+d.price)) && data.length===products.length) return;
-  let oldImgs={}; products.forEach(p=>{if(p.image) oldImgs[p.id]=p.image;});
-  data.forEach(d=>{ if(!d.image && oldImgs[d.id]) d.image=oldImgs[d.id]; });
   products=data; syncCats(); saveCache(); renderCats(); if(document.getElementById('productsView').style.display==='block') renderProducts();
 },err=>{ console.log(err); });
 function getCatImage(n){let f=cats.find(c=>c.name===n);if(f&&f.image)return `<img src="${f.image}" loading="lazy">`;return `<div class="empty-img">LAILA</div>`;}
