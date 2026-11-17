@@ -7,7 +7,7 @@
 <style>
 *{margin:0;padding:0;box-sizing:border-box;font-family:'Georgia',serif}
 body{background:#F5EFE6;color:#4A2A2A}
-.header{display:flex;justify-content:space-between;align-items:center;padding:18px 16px 12px}
+.header{display:flex;justify-content:space-between;align-items:center;padding:18px 16px 12px;position:sticky;top:0;background:#F5EFE6;z-index:10}
 .logo{font-size:32px;letter-spacing:8px;color:#6B0F2A;font-weight:bold}
 .my-cart,.about-btn{background:#6B0F2A;color:#fff;border:none;padding:8px 14px;border-radius:20px;font-size:13px;cursor:pointer}
 .line{height:1px;background:#C9A24B;margin:0 16px}
@@ -50,13 +50,20 @@ input,textarea{width:100%;padding:12px;border:1px solid #ddd;border-radius:12px;
 .skeleton-p{background:#fff;border-radius:14px;height:225px;animation:pulse 1.2s infinite}
 @keyframes pulse{0%{opacity:1}50%{opacity:.5}100%{opacity:1}}
 .empty-img{width:100%;height:100%;display:flex;align-items:center;justify-content:center;background:#F5EFE6;color:#6B0F2A;font-size:22px;letter-spacing:4px;font-weight:bold}
+.about-box{text-align:center;line-height:26px}
+.about-box h2{color:#6B0F2A;margin-bottom:10px}
+.about-box p{font-size:14px;color:#555;margin-bottom:10px}
 </style>
 </head>
 <body>
-<div class="header"><div class="logo">LAILA</div><div style="display:flex;gap:8px"><button class="about-btn" onclick="window.location.href='about.html'">About</button><button class="my-cart" onclick="openCart()">My Cart 🛒 (<span id="cartCount">0</span>)</button></div></div>
+<div class="header"><div class="logo">LAILA</div><div style="display:flex;gap:8px"><button class="about-btn" onclick="openAbout()">About</button><button class="my-cart" onclick="openCart()">My Cart 🛒 (<span id="cartCount">0</span>)</button></div></div>
 <div class="line"></div>
 <div id="catsView"><div class="title">Shop Our Collection</div><div class="cats-grid" id="catsGrid"></div></div>
 <div id="productsView"><button class="back" onclick="goBack()">← Back to Categories</button><div class="title" id="catTitle">Socks</div><div class="products-grid" id="grid"></div></div>
+
+<!-- About بقى نافذة فوق المتجر، مش صفحة لوحدها، فالمتجر مش هيتحمل تاني -->
+<div class="overlay" id="aboutOverlay" onclick="if(event.target===this) closeAbout()"><div class="cart-box"><div class="about-box"><h2>LAILA 💕</h2><p>Welcome to LAILA, your cozy corner for socks, pashmina and soft accessories.</p><p>We pick every piece with love, to make you feel warm, pretty and comfortable every day.</p><p style="color:#6B0F2A;font-weight:bold">Made with love in Damietta</p></div><button class="close-btn" onclick="closeAbout()">Back to Shop</button></div></div>
+
 <div class="overlay" id="cartOverlay" onclick="if(event.target===this) closeCart()"><div class="cart-box"><h2>My Cart 🛒</h2><div id="cartItems"></div><div class="total" id="cartTotal"></div><button class="checkout-btn" onclick="showCheckout()">Checkout →</button><button class="close-btn" onclick="closeCart()">Close</button></div></div>
 <div class="overlay" id="checkoutOverlay" onclick="if(event.target===this) closeCheckout()"><div class="cart-box"><h2>Checkout 💕</h2><p id="checkoutTotal" style="margin-bottom:12px;color:#6B0F2A;font-weight:bold"></p>
 <div class="ship-box">🚚 متاح شحن جميع المحافظات<br>سعر الشحن من 100 إلى 140 حسب مكانك<br>مدة التوصيل من 3 لـ 5 أيام كحد أقصى</div>
@@ -84,12 +91,13 @@ let products = [];
 let cats = [];
 let cart=[]; let currentCat='All'; let tempPayShot="";
 let isLoaded = false;
-let hasCache = false;
+let lastFetch = 0;
 try{
   let cp = JSON.parse(localStorage.getItem('laila_cache_products')||'[]');
   let cc = JSON.parse(localStorage.getItem('laila_cache_cats')||'[]');
-  if(cp.length){ products = cp; hasCache = true; }
-  if(cc.length){ cats = cc; hasCache = true; }
+  let lt = parseInt(localStorage.getItem('laila_cache_time')||'0');
+  if(cp.length){ products = cp; lastFetch = lt; }
+  if(cc.length){ cats = cc; }
 }catch(e){}
 function getCatOf(p){ return (p.cat || p.category || p.catName || '').toString().trim(); }
 function buildCatsFromProducts(){
@@ -102,9 +110,8 @@ function buildCatsFromProducts(){
   });
   return list;
 }
-function syncCats(manualCats){
-  if(manualCats && manualCats.length){ cats = manualCats; }
-  else { cats = buildCatsFromProducts(); }
+function syncCats(){
+  cats = buildCatsFromProducts();
   cats.forEach(c=>{
     if(!c.image){
       let f = products.find(p=>getCatOf(p)===c.name && p.image);
@@ -112,6 +119,8 @@ function syncCats(manualCats){
     }
   });
 }
+function openAbout(){ document.getElementById('aboutOverlay').classList.add('open'); }
+function closeAbout(){ document.getElementById('aboutOverlay').classList.remove('open'); }
 document.getElementById('fPayShot').addEventListener('change', function(e){
   let file=e.target.files[0]; if(!file) return;
   let r=new FileReader();
@@ -134,39 +143,33 @@ document.getElementById('fPayShot').addEventListener('change', function(e){
 });
 function openImage(src){ document.getElementById('bigImg').src=src; document.getElementById('imgOverlay').classList.add('open'); }
 function closeImage(){ document.getElementById('imgOverlay').classList.remove('open'); }
-function saveCache(){ try{ localStorage.setItem('laila_cache_products', JSON.stringify(products)); localStorage.setItem('laila_cache_cats', JSON.stringify(cats)); }catch(e){} }
+function saveCache(){ try{ localStorage.setItem('laila_cache_products', JSON.stringify(products)); localStorage.setItem('laila_cache_cats', JSON.stringify(cats)); localStorage.setItem('laila_cache_time', Date.now().toString()); }catch(e){} }
 async function loadFromNet(){
+  // لو لسه جايبين من اقل من 5 دقايق، متجيبش تاني، خليك على الكاش السريع
+  if(products.length && Date.now() - lastFetch < 5*60*1000){ isLoaded=true; return; }
   try{
     const snap = await db.collection("products").get();
     let data = [];
     snap.forEach(doc=>{ let d=doc.data(); d.id=doc.id; data.push(d); });
-    if(data.length){ products = data; }
-    syncCats([]);
-    isLoaded = true; saveCache(); renderCats();
-    if(document.getElementById('productsView').style.display==='block') renderProducts();
-  }catch(e){ 
-    isLoaded = true; 
-    if(products.length){ syncCats([]); }
-    renderCats();
-  }
+    if(data.length){ products = data; syncCats(); saveCache(); renderCats(); if(document.getElementById('productsView').style.display==='block') renderProducts(); }
+    isLoaded = true;
+  }catch(e){ isLoaded = true; renderCats(); }
 }
 db.collection("products").onSnapshot(snap=>{
   if(snap.empty) return;
   let data=[]; snap.forEach(doc=>{ let d=doc.data(); d.id=doc.id; data.push(d); });
   if(JSON.stringify(data)===JSON.stringify(products)) return;
-  products=data; syncCats([]); saveCache();
-  renderCats(); if(document.getElementById('productsView').style.display==='block') renderProducts();
+  products=data; syncCats(); saveCache(); renderCats(); if(document.getElementById('productsView').style.display==='block') renderProducts();
 });
 function getCatImage(catName){
   let f = cats.find(c=>c.name===catName); 
-  if(f && f.image) return `<img src="${f.image}">`;
+  if(f && f.image) return `<img src="${f.image}" loading="lazy">`;
   return `<div class="empty-img">LAILA</div>`;
 }
 function renderCats(){
   let g=document.getElementById('catsGrid');
-  if(!cats.length && products.length){ syncCats([]); }
+  if(!cats.length && products.length){ syncCats(); }
   if(!cats.length){
-    // مفيش اي رسالة هنا خالص، سكيليتون بس لحد ما المنتجات تيجي
     g.innerHTML = '<div class="skeleton"></div><div class="skeleton"></div><div class="skeleton"></div><div class="skeleton"></div>';
     return;
   }
@@ -221,7 +224,7 @@ async function sendOrder(){
   cart=[]; updateCount(); renderProducts(); tempPayShot=""; document.getElementById('fPayShot').value=''; document.getElementById('payPreview').style.display='none';
   setTimeout(()=>{ closeCheckout(); },2500);
 }
-if(products.length){ syncCats([]); }
+if(products.length){ syncCats(); }
 renderCats(); loadFromNet();
 </script>
 </body>
