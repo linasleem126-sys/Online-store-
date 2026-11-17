@@ -92,7 +92,7 @@ document.getElementById('fPayShot').addEventListener('change',function(e){let fi
 function openImage(src){document.getElementById('bigImg').src=src;document.getElementById('imgOverlay').classList.add('open');}
 function closeImage(){document.getElementById('imgOverlay').classList.remove('open');}
 db.collection("products").onSnapshot(snap=>{
-  if(snap.empty){ if(!products.length) document.getElementById('catsGrid').innerHTML='<p style="text-align:center;color:#999;padding:20px">No products yet</p>'; return; }
+  if(snap.empty){ return; }
   let data=[]; snap.forEach(doc=>{let d=doc.data();d.id=doc.id;data.push(d);});
   products=data; syncCats(); saveCache(); renderCats(); if(document.getElementById('productsView').style.display==='block') renderProducts();
 },err=>{ console.log(err); });
