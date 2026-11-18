@@ -164,7 +164,7 @@ function renderOrders(){
     let total=o.total_price??o.total??'';
     let dateStr=o.createdAt&&o.createdAt.toDate?o.createdAt.toDate().toLocaleString('ar-EG'):(o.date||'');
     let shot=o.shot||'';
-    return `<div class="order-card">${badge}<br><b>${name}</b><br>📱 ${o.phone||''}<br>📍 ${o.gov||''} - ${o.address||''}<br>🛍️ ${items}<br><b>التوتال: ${total} EGP</b><br><small>${dateStr}</small>${shot?`<img src="${shot}" onclick="window.open(this.src)">`:''}<br><div style="display:flex;gap:8px">${confirmBtn}<button class="del" onclick="delOrder('${o.id}')">حذف الأوردر</button></div></div>`;
+    return `<div class="order-card">${badge}<br><b>${name}</b><br>📱 ${o.phone||''}<br>💸 رقم التحويل: ${o.transfer_number||o.transferNumber||'مش مكتوب'}<br>📍 ${o.gov||''} - ${o.address||''}<br>🛍️ ${items}<br><b>التوتال: ${total} EGP</b><br><small>${dateStr}</small>${shot?`<img src="${shot}" onclick="window.open(this.src)">`:''}<br><div style="display:flex;gap:8px">${confirmBtn}<button class="del" onclick="delOrder('${o.id}')">حذف الأوردر</button></div></div>`;
   }).join('');
 }
 async function confirmOrder(id){try{await db.collection("orders").doc(id).update({status:'paid'});}catch(e){}alert('تم تأكيد الدفع ✅ بقي مدفوع');}
