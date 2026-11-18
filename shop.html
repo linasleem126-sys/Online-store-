@@ -20,15 +20,19 @@ nav button.active{background:#6B0F2A;color:#fff}
 .hero p{color:#C9A24B;letter-spacing:3px;margin-top:8px}
 #msg{text-align:center;color:#999;margin:20px}
 .wrap{max-width:900px;margin:0 auto;padding:0 16px 40px}
-.cat{background:#fff;border:1px solid #E8DCC8;border-radius:16px;padding:16px;margin:16px 0}
-.cat-head{display:flex;align-items:center;gap:12px;margin-bottom:12px}
-.cat-head img{width:60px;height:60px;object-fit:cover;border-radius:12px}
-.cat-head h2{color:#6B0F2A}
-.prod{display:flex;gap:12px;background:#FFF9F0;border-radius:12px;padding:10px;margin:10px 0}
+/* شكل الكروت القديم */
+.grid{display:grid;grid-template-columns:1fr 1fr;gap:16px}
+@media(max-width:500px){.grid{grid-template-columns:1fr 1fr}}
+.card{background:#fff;border:1px solid #E8DCC8;border-radius:18px;overflow:hidden;text-align:center;padding-bottom:14px;cursor:pointer}
+.card img{width:100%;height:160px;object-fit:cover}
+.card h3{color:#6B0F2A;margin:12px 0 8px;font-size:18px}
+.card button{background:#6B0F2A;color:#fff;border:none;padding:8px 20px;border-radius:20px;cursor:pointer}
+.prod{display:flex;gap:12px;background:#fff;border-radius:12px;padding:10px;margin:10px 0}
 .prod img{width:80px;height:80px;object-fit:cover;border-radius:10px}
-.prod b{display:block;font-size:16px}
+.prod b{display:block}
 .price{color:#C9A24B;font-weight:bold;margin:6px 0}
 .prod button{background:#6B0F2A;color:#fff;border:none;padding:8px 14px;border-radius:20px;cursor:pointer}
+.back{background:none;border:1px solid #6B0F2A;color:#6B0F2A;padding:8px 16px;border-radius:20px;cursor:pointer;margin-bottom:12px}
 #about{display:none;max-width:900px;margin:0 auto;padding:20px}
 #cartDrawer{display:none;position:fixed;right:0;top:0;width:320px;max-width:90%;height:100%;background:#fff;padding:16px;box-shadow:-2px 0 10px rgba(0,0,0,.2);z-index:20}
 </style>
@@ -46,7 +50,10 @@ nav button.active{background:#6B0F2A;color:#fff}
 <div id="shopView">
 <div class="hero"><h1>LAILA</h1><p>NEW COLLECTION</p></div>
 <div id="msg">Loading...</div>
-<div class="wrap"><div id="shop"></div></div>
+<div class="wrap">
+<div id="catsView"></div>
+<div id="prodsView" style="display:none"></div>
+</div>
 </div>
 
 <div id="about">
@@ -65,30 +72,39 @@ nav button.active{background:#6B0F2A;color:#fff}
 const firebaseConfig = {apiKey:"AIzaSyCcSNVB5cnqtQluyWMyDX6I5q_dj7h6f2Y",authDomain:"laila-store-2dc4c.firebaseapp.com",projectId:"laila-store-2dc4c",storageBucket:"laila-store-2dc4c.firebasestorage.app",messagingSenderId:"450895782726",appId:"1:450895782726:web:57e264ff703863d6583b47",measurementId:"G-M9ZF3Y96DC"};
 firebase.initializeApp(firebaseConfig);
 const db = firebase.firestore();
-const shopEl = document.getElementById('shop');
-const msgEl = document.getElementById('msg');
-let cats=[], prods=[], cart=[];
+let cats=[], prods=[], cart=[], currentCat=null;
 function showShop(){document.getElementById('shopView').style.display='block';document.getElementById('about').style.display='none';document.getElementById('shopTab').classList.add('active');document.getElementById('aboutTab').classList.remove('active')}
 function showAbout(){document.getElementById('shopView').style.display='none';document.getElementById('about').style.display='block';document.getElementById('shopTab').classList.remove('active');document.getElementById('aboutTab').classList.add('active')}
 function toggleCart(){const d=document.getElementById('cartDrawer');d.style.display=d.style.display==='block'?'none':'block'}
 function addToCart(id){const p=prods.find(x=>x.id===id);cart.push(p);document.getElementById('cartCount').textContent=cart.length;document.getElementById('cartItems').innerHTML=cart.map(c=>`<div style="padding:8px 0;border-bottom:1px solid #eee">${c.name} - ${c.price} EGP</div>`).join('');alert('Added to cart')}
-function render(){
-  if(!cats.length){msgEl.textContent="No categories yet - check dashboard";shopEl.innerHTML="";return}
-  msgEl.textContent="";
-  let html="";
-  cats.forEach(c=>{
-    html+=`<div class="cat"><div class="cat-head">${c.image?`<img src="${c.image}">`:''}<h2>${c.name}</h2></div>`;
-    const items = prods.filter(p=>p.cat===c.name);
-    if(!items.length) html+=`<p style="color:#999">No products in this category yet</p>`;
-    items.forEach(p=>{
-      html+=`<div class="prod">${p.image?`<img src="${p.image}">`:''}<div><b>${p.name||''}</b><div>${p.cat||''}</div><div class="price">${p.price||''} EGP</div><button onclick="addToCart('${p.id}')">Add to Cart</button></div></div>`;
-    });
-    html+=`</div>`;
-  });
-  shopEl.innerHTML=html;
+function renderCats(){
+  const msg=document.getElementById('msg');
+  if(!cats.length){msg.textContent="No categories yet";return}
+  msg.textContent="";
+  document.getElementById('catsView').innerHTML=`<div class="grid">${cats.map(c=>`
+    <div class="card" onclick="openCat('${c.name}')">
+      ${c.image?`<img src="${c.image}">`:`<div style="height:160px;background:#FFF9F0;display:flex;align-items:center;justify-content:center;font-size:40px">📂</div>`}
+      <h3>${c.name}</h3>
+      <button onclick="event.stopPropagation();openCat('${c.name}')">Shop Now</button>
+    </div>`).join('')}</div>`;
+  document.getElementById('catsView').style.display='block';
+  document.getElementById('prodsView').style.display='none';
 }
-db.collection("categories").onSnapshot(snap=>{cats=snap.docs.map(d=>({id:d.id,...d.data()}));render()});
-db.collection("products").onSnapshot(snap=>{prods=snap.docs.map(d=>({id:d.id,...d.data()}));render()});
+function openCat(name){
+  currentCat=name;
+  const items=prods.filter(p=>p.cat===name);
+  document.getElementById('catsView').style.display='none';
+  const pv=document.getElementById('prodsView');
+  pv.style.display='block';
+  let html=`<button class="back" onclick="renderCats()">← Back to Categories</button><h2 style="color:#6B0F2A;margin-bottom:12px">${name}</h2>`;
+  if(!items.length) html+=`<p style="color:#999">No products in this category yet</p>`;
+  items.forEach(p=>{
+    html+=`<div class="prod">${p.image?`<img src="${p.image}">`:''}<div><b>${p.name||''}</b><div class="price">${p.price||''} EGP</div><button onclick="addToCart('${p.id}')">Add to Cart</button></div></div>`;
+  });
+  pv.innerHTML=html;
+}
+db.collection("categories").onSnapshot(snap=>{cats=snap.docs.map(d=>({id:d.id,...d.data()}));renderCats()});
+db.collection("products").onSnapshot(snap=>{prods=snap.docs.map(d=>({id:d.id,...d.data()}));if(currentCat) openCat(currentCat)});
 </script>
 </body>
 </html>
