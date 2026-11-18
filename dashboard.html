@@ -33,10 +33,13 @@ button:disabled{opacity:.6}
 .badge-paid{background:#D4EDDA;color:#155724}
 .confirm-btn{background:#28a745;color:#fff;padding:8px 14px;border-radius:20px;font-size:12px;margin-top:8px}
 .hint{font-size:12px;color:#999;text-align:center;margin-top:6px}
+.refresh-btn{width:100%;background:#fff;border:1px solid #6B0F2A!important;color:#6B0F2A;margin-bottom:12px}
 </style>
 </head>
 <body>
 <h1>LAILA - لوحة التحكم 💕</h1>
+<button class="refresh-btn" onclick="location.reload()">🔄 تحديث لو علق</button>
+<div id="loadStatus" style="text-align:center;color:#999;font-size:13px;margin-bottom:12px">جاري تحميل الأقسام والمنتجات والأوردرات من السيرفر...</div>
 <div class="box"><h2>🧾 الأوردرات</h2><div id="ordersList">جاري التحميل...</div></div>
 <div class="box"><h2>📂 الأقسام</h2>
 <div id="catsList">جاري التحميل...</div>
@@ -48,7 +51,7 @@ button:disabled{opacity:.6}
 <div class="box"><h2 id="formTitle">➕ أضيفي منتج جديد</h2>
 <input id="pName" placeholder="اسم المنتج">
 <input id="pPrice" type="number" placeholder="السعر">
-<select id="pCat"></select>
+<select id="pCat"><option>جاري تحميل الأقسام...</option></select>
 <input id="pImage" type="file" accept="image/*">
 <img id="previewImg" style="width:80px;height:80px;object-fit:cover;border-radius:10px;display:none;margin-bottom:10px">
 <button class="btn-add" id="saveBtn" onclick="saveProduct()">حفظ المنتج ✅</button>
@@ -64,6 +67,13 @@ const db = firebase.firestore();
 let products=[]; let cats=[]; let orders=[];
 let tempImage=""; let tempCatImage=""; let imageReady=true; let catImageReady=true;
 let editingId=null; let editingOldImage="";
+// FIX: منع رسالة "مفيش" الكاذبة - منستناش الكاش الفاضي
+let catsLoadedFromServer=false, prodsLoadedFromServer=false, ordersLoadedFromServer=false;
+function updateLoadStatus(){
+  if(catsLoadedFromServer && prodsLoadedFromServer && ordersLoadedFromServer){
+    document.getElementById('loadStatus').innerText = cats.length + ' قسم - ' + products.length + ' منتج - ' + orders.length + ' أوردر ✅';
+  }
+}
 function tsOf(d){return d&&d.createdAt&&d.createdAt.toMillis?d.createdAt.toMillis():0;}
 function compressImage(file, callback){
   let r=new FileReader();
@@ -73,21 +83,40 @@ function compressImage(file, callback){
 document.getElementById('pImage').addEventListener('change',function(e){let file=e.target.files[0];if(!file)return;imageReady=false;document.getElementById('saveBtn').disabled=true;document.getElementById('imgHint').innerText='جاري تجهيز الصورة... استني ثانية';compressImage(file,function(compressed){tempImage=compressed;document.getElementById('previewImg').src=tempImage;document.getElementById('previewImg').style.display='block';imageReady=true;document.getElementById('saveBtn').disabled=false;document.getElementById('imgHint').innerText='';});});
 document.getElementById('newCatImage').addEventListener('change',function(e){let file=e.target.files[0];if(!file)return;catImageReady=false;document.getElementById('addCatBtn').disabled=true;compressImage(file,function(compressed){tempCatImage=compressed;document.getElementById('catPreview').src=tempCatImage;document.getElementById('catPreview').style.display='block';catImageReady=true;document.getElementById('addCatBtn').disabled=false;});});
 function listenAll(){
-  db.collection("products").onSnapshot(snap=>{
+  // نستخدم includeMetadataChanges عشان نعرف هل دي بيانات من الكاش ولا من السيرفر
+  db.collection("products").onSnapshot({includeMetadataChanges:true},snap=>{
+    // لو دي بيانات كاش ولسه مجاش السيرفر، متعرضش "مفيش منتجات"
+    if(snap.metadata.fromCache && !prodsLoadedFromServer){
+      document.getElementById('productsList').innerHTML='جاري التحميل من السيرفر...';
+      return;
+    }
+    prodsLoadedFromServer=true;
     products=[]; snap.forEach(doc=>{let d=doc.data();d.id=doc.id;d._t=tsOf(d);products.push(d);});
-    products.sort((a,b)=>b._t-a._t); render();
+    products.sort((a,b)=>b._t-a._t); render(); updateLoadStatus();
   });
-  db.collection("categories").onSnapshot(snap=>{
+  db.collection("categories").onSnapshot({includeMetadataChanges:true},snap=>{
+    if(snap.metadata.fromCache && !catsLoadedFromServer){
+      document.getElementById('catsList').innerHTML='جاري التحميل من السيرفر...';
+      document.getElementById('pCat').innerHTML='<option>جاري تحميل الأقسام...</option>';
+      return;
+    }
+    catsLoadedFromServer=true;
     cats=[]; snap.forEach(doc=>{let d=doc.data();d.id=doc.id;d._t=tsOf(d);cats.push(d);});
-    cats.sort((a,b)=>a._t-b._t); renderCats();
+    cats.sort((a,b)=>a._t-b._t); renderCats(); updateLoadStatus();
   });
-  db.collection("orders").onSnapshot(snap=>{
+  db.collection("orders").onSnapshot({includeMetadataChanges:true},snap=>{
+    if(snap.metadata.fromCache && !ordersLoadedFromServer){
+      document.getElementById('ordersList').innerHTML='جاري التحميل من السيرفر...';
+      return;
+    }
+    ordersLoadedFromServer=true;
     orders=[]; snap.forEach(doc=>{let d=doc.data();d.id=doc.id;d._t=tsOf(d);orders.push(d);});
-    orders.sort((a,b)=>b._t-a._t); renderOrders();
+    orders.sort((a,b)=>b._t-a._t); renderOrders(); updateLoadStatus();
   });
 }
 function renderCats(){
   let sel=document.getElementById('pCat');
+  if(!catsLoadedFromServer){sel.innerHTML='<option>جاري تحميل الأقسام...</option>';return;}
   if(!cats.length){sel.innerHTML='<option value="">مفيش أقسام - ضيفي قسم الأول</option>';document.getElementById('catsList').innerHTML='لسه مفيش أقسام';return;}
   sel.innerHTML=cats.map(c=>`<option>${c.name}</option>`).join('');
   if(editingId){let p=products.find(x=>x.id===editingId);if(p) sel.value=p.cat;}
@@ -105,6 +134,7 @@ async function addCategory(){
 }
 async function delCategory(id){if(!confirm('تمسحي القسم ده؟ المنتجات اللي جواه مش هتظهر في المتجر لحد ما تنقليها لقسم تاني'))return;try{await db.collection("categories").doc(id).delete();}catch(e){}}
 function render(){
+  if(!prodsLoadedFromServer){document.getElementById('productsList').innerHTML='جاري التحميل...';return;}
   if(!products.length){document.getElementById('productsList').innerHTML='لسه مفيش منتجات';return;}
   document.getElementById('productsList').innerHTML=products.map(p=>`<div class="item"><div class="item-info">${p.image?`<img src="${p.image}" onclick="window.open(this.src)">`:'✨'}<span>${p.name}<br><small>${p.cat||''} - ${p.price} EGP</small></span></div><div class="btns"><button class="edit" onclick="editProduct('${p.id}')">تعديل ✏️</button><button class="del" onclick="delProduct('${p.id}')">حذف</button></div></div>`).join('');
 }
@@ -140,6 +170,7 @@ async function saveProduct(){
 async function delProduct(id){if(!confirm('تمسحي؟'))return;try{await db.collection("products").doc(id).delete();}catch(e){}}
 function renderOrders(){
   let box=document.getElementById('ordersList');
+  if(!ordersLoadedFromServer){box.innerHTML='جاري التحميل...';return;}
   if(!orders.length){box.innerHTML='لسه مفيش أوردرات';return;}
   box.innerHTML=orders.map(o=>{
     let status=o.status||'pending';
