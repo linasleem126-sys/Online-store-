@@ -48,7 +48,7 @@ button:disabled{opacity:.6}
 <div class="box"><h2 id="formTitle">➕ أضيفي منتج جديد</h2>
 <input id="pName" placeholder="اسم المنتج">
 <input id="pPrice" type="number" placeholder="السعر">
-<select id="pCat"></select>
+<select id="pCat"><option>جاري تحميل الأقسام...</option></select>
 <input id="pImage" type="file" accept="image/*">
 <img id="previewImg" style="width:80px;height:80px;object-fit:cover;border-radius:10px;display:none;margin-bottom:10px">
 <button class="btn-add" id="saveBtn" onclick="saveProduct()">حفظ المنتج ✅</button>
@@ -61,6 +61,7 @@ button:disabled{opacity:.6}
 const firebaseConfig = {apiKey:"AIzaSyCcSNVB5cnqtQluyWMyDX6I5q_dj7h6f2Y",authDomain:"laila-store-2dc4c.firebaseapp.com",projectId:"laila-store-2dc4c",storageBucket:"laila-store-2dc4c.firebasestorage.app",messagingSenderId:"450895782726",appId:"1:450895782726:web:57e264ff703863d6583b47",measurementId:"G-M9ZF3Y96DC"};
 firebase.initializeApp(firebaseConfig);
 const db = firebase.firestore();
+db.settings({ experimentalForceLongPolling: true });
 let products=[]; let cats=[]; let orders=[];
 let tempImage=""; let tempCatImage=""; let imageReady=true; let catImageReady=true;
 let editingId=null; let editingOldImage="";
@@ -72,21 +73,32 @@ function compressImage(file, callback){
 }
 document.getElementById('pImage').addEventListener('change',function(e){let file=e.target.files[0];if(!file)return;imageReady=false;document.getElementById('saveBtn').disabled=true;document.getElementById('imgHint').innerText='جاري تجهيز الصورة... استني ثانية';compressImage(file,function(compressed){tempImage=compressed;document.getElementById('previewImg').src=tempImage;document.getElementById('previewImg').style.display='block';imageReady=true;document.getElementById('saveBtn').disabled=false;document.getElementById('imgHint').innerText='';});});
 document.getElementById('newCatImage').addEventListener('change',function(e){let file=e.target.files[0];if(!file)return;catImageReady=false;document.getElementById('addCatBtn').disabled=true;compressImage(file,function(compressed){tempCatImage=compressed;document.getElementById('catPreview').src=tempCatImage;document.getElementById('catPreview').style.display='block';catImageReady=true;document.getElementById('addCatBtn').disabled=false;});});
+async function getServer(col){
+  try{ return await db.collection(col).get({source:'server'}); }
+  catch(e){ return await db.collection(col).get(); }
+}
 async function listenAll(){
-  // تحميل مباشر مرة واحدة - من غير انتظار الكاش
-  try{
-    const [pSnap,cSnap,oSnap]=await Promise.all([db.collection("products").get(),db.collection("categories").get(),db.collection("orders").get()]);
-    products=[]; pSnap.forEach(doc=>{let d=doc.data();d.id=doc.id;d._t=tsOf(d);products.push(d);});
-    products.sort((a,b)=>b._t-a._t); render();
-    cats=[]; cSnap.forEach(doc=>{let d=doc.data();d.id=doc.id;d._t=tsOf(d);cats.push(d);});
-    cats.sort((a,b)=>a._t-b._t); renderCats();
-    orders=[]; oSnap.forEach(doc=>{let d=doc.data();d.id=doc.id;d._t=tsOf(d);orders.push(d);});
-    orders.sort((a,b)=>b._t-a._t); renderOrders();
-  }catch(e){ document.getElementById('productsList').innerHTML='في مشكلة في التحميل - اعملي Refresh'; }
-  // بعد كده تحديث لحظي لأي إضافة/حذف جديد
-  db.collection("products").onSnapshot(snap=>{products=[]; snap.forEach(doc=>{let d=doc.data();d.id=doc.id;d._t=tsOf(d);products.push(d);}); products.sort((a,b)=>b._t-a._t); render();});
-  db.collection("categories").onSnapshot(snap=>{cats=[]; snap.forEach(doc=>{let d=doc.data();d.id=doc.id;d._t=tsOf(d);cats.push(d);}); cats.sort((a,b)=>a._t-b._t); renderCats();});
-  db.collection("orders").onSnapshot(snap=>{orders=[]; snap.forEach(doc=>{let d=doc.data();d.id=doc.id;d._t=tsOf(d);orders.push(d);}); orders.sort((a,b)=>b._t-a._t); renderOrders();});
+  const pSnap = await getServer("products");
+  const cSnap = await getServer("categories");
+  const oSnap = await getServer("orders");
+  products=[]; pSnap.forEach(doc=>{let d=doc.data();d.id=doc.id;d._t=tsOf(d);products.push(d);});
+  products.sort((a,b)=>b._t-a._t); render();
+  cats=[]; cSnap.forEach(doc=>{let d=doc.data();d.id=doc.id;d._t=tsOf(d);cats.push(d);});
+  cats.sort((a,b)=>a._t-b._t); renderCats();
+  orders=[]; oSnap.forEach(doc=>{let d=doc.data();d.id=doc.id;d._t=tsOf(d);orders.push(d);});
+  orders.sort((a,b)=>b._t-a._t); renderOrders();
+  db.collection("products").onSnapshot(snap=>{
+    if(snap.empty && products.length>0) return;
+    products=[]; snap.forEach(doc=>{let d=doc.data();d.id=doc.id;d._t=tsOf(d);products.push(d);}); products.sort((a,b)=>b._t-a._t); render();
+  });
+  db.collection("categories").onSnapshot(snap=>{
+    if(snap.empty && cats.length>0) return;
+    cats=[]; snap.forEach(doc=>{let d=doc.data();d.id=doc.id;d._t=tsOf(d);cats.push(d);}); cats.sort((a,b)=>a._t-b._t); renderCats();
+  });
+  db.collection("orders").onSnapshot(snap=>{
+    if(snap.empty && orders.length>0) return;
+    orders=[]; snap.forEach(doc=>{let d=doc.data();d.id=doc.id;d._t=tsOf(d);orders.push(d);}); orders.sort((a,b)=>b._t-a._t); renderOrders();
+  });
 }
 function renderCats(){
   let sel=document.getElementById('pCat');
