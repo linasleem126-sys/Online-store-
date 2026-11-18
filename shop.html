@@ -8,14 +8,16 @@
 *{margin:0;padding:0;box-sizing:border-box;font-family:Georgia,serif}
 body{background:#F5EFE6;color:#4A2A2A}
 header{display:flex;justify-content:space-between;align-items:center;padding:14px 16px;position:sticky;top:0;background:#F5EFE6;z-index:100}
-.logo{font-size:32px;letter-spacing:8px;color:#6B0F2A;font-weight:bold;cursor:pointer}
-.top-btns{display:flex;gap:8px;align-items:center}
-.about-btn{border:1px solid #6B0F2A;color:#6B0F2A;background:transparent;padding:8px 16px;border-radius:20px;cursor:pointer}
+.left-head{display:flex;align-items:center;gap:10px}
+.logo{font-size:28px;letter-spacing:6px;color:#6B0F2A;font-weight:bold;cursor:pointer}
+.about-btn{border:1px solid #6B0F2A;color:#6B0F2A;background:transparent;padding:8px 14px;border-radius:20px;cursor:pointer}
 .cart-btn{background:#6B0F2A;color:#fff;border:none;padding:8px 16px;border-radius:20px;cursor:pointer;font-size:15px}
-.hero{text-align:center;padding:20px 0 10px}
-.hero h1{font-size:52px;letter-spacing:12px;color:#6B0F2A}
-.hero p{color:#8A7A3A;font-size:19px;margin-top:6px}
+.hero{text-align:center;padding:16px 0 4px}
+.hero p{color:#8A7A3A;font-size:19px}
+.loading{text-align:center;color:#999;font-size:14px;letter-spacing:2px;margin:14px 0}
 .section-title{text-align:center;color:#6B0F2A;font-size:22px;margin:14px 0 6px;letter-spacing:2px}
+#homeView{display:block}
+#shopView{display:none}
 .cat-cards{display:grid;grid-template-columns:1fr 1fr;gap:12px;padding:12px 16px}
 .cat-card{background:#fff;border-radius:16px;overflow:hidden;text-align:center;padding-bottom:12px}
 .cat-card img{width:100%;height:150px;object-fit:cover;display:block;cursor:zoom-in}
@@ -23,16 +25,15 @@ header{display:flex;justify-content:space-between;align-items:center;padding:14p
 .shop-now{background:#6B0F2A;color:#fff;border:none;padding:9px 20px;border-radius:20px;cursor:pointer}
 .back-btn{background:transparent;border:1px solid #6B0F2A;color:#6B0F2A;padding:8px 16px;border-radius:20px;cursor:pointer;margin:10px 16px}
 .cat-title{text-align:center;color:#6B0F2A;font-size:22px;margin:6px 0}
-.cats{display:flex;gap:8px;overflow-x:auto;padding:14px 16px;flex-direction:row;scrollbar-width:none;-ms-overflow-style:none}
-.cats::-webkit-scrollbar{display:none}
-.cat-pill{white-space:nowrap;flex-shrink:0;border:1px solid #6B0F2A;background:#fff;color:#6B0F2A;padding:8px 16px;border-radius:20px;cursor:pointer}
-.cat-pill.active{background:#6B0F2A;color:#fff}
 .grid{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;padding:12px 16px}
 .card{background:#EDE3D3;border-radius:16px;overflow:hidden;text-align:center;padding-bottom:12px}
 .card img{width:100%;height:150px;object-fit:cover;display:block;cursor:zoom-in}
 .card h3{font-size:14px;margin:10px 4px 6px;min-height:38px}
 .price{color:#8A7A3A;font-weight:bold;margin-bottom:10px;font-size:14px}
 .add-btn{background:#6B0F2A;color:#fff;border:none;padding:9px 10px;border-radius:20px;cursor:pointer;width:88%;font-size:13px}
+.qty-card{display:flex;align-items:center;justify-content:center;gap:12px;width:88%;margin:0 auto}
+.qty-card button{width:32px;height:32px;border-radius:50%;border:1px solid #6B0F2A;background:#fff;color:#6B0F2A;font-size:20px;cursor:pointer;line-height:1;display:flex;align-items:center;justify-content:center}
+.qty-card span{font-weight:bold;font-size:16px;min-width:18px;text-align:center}
 #cartOverlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:300}
 #cartBox{position:fixed;bottom:0;left:0;right:0;background:#fff;border-radius:24px 24px 0 0;max-height:92vh;overflow:auto;padding:22px 18px 18px;z-index:310;display:none;text-align:right;direction:rtl}
 .cart-item{display:flex;gap:10px;align-items:center;border-bottom:1px solid #eee;padding:14px 0;direction:rtl}
@@ -62,17 +63,17 @@ input,select,textarea{width:100%;padding:12px;border:1px solid #ddd;border-radiu
 </style>
 </head>
 <body>
-<header><div class="logo" onclick="backToCats()">LAILA</div><div class="top-btns"><button class="about-btn" onclick="openAbout()">About</button><button class="cart-btn" onclick="openCart()">Cart 🛒 (<span id="cartCount">0</span>)</button></div></header>
-<div class="hero"><h1>LAILA</h1><p>Enjoy with our collection</p></div>
+<header><div class="left-head"><div class="logo" onclick="backToCats()">LAILA</div><button class="about-btn" onclick="openAbout()">About</button></div><button class="cart-btn" onclick="openCart()">Cart 🛒 (<span id="cartCount">0</span>)</button></header>
+<div class="hero"><p>Enjoy with our collection</p></div>
+<div class="loading" id="loadingText">Loading...</div>
 <div id="homeView">
 <div class="section-title">Shop by Category</div>
-<div class="cat-cards" id="catCards">جاري تحميل الأقسام...</div>
+<div class="cat-cards" id="catCards"></div>
 </div>
-<div id="shopView" style="display:none">
+<div id="shopView">
 <button class="back-btn" onclick="backToCats()">← Back to Categories</button>
 <div class="cat-title" id="catTitle"></div>
-<div class="cats" id="catsBar"><button class="cat-pill active" onclick="filterCatByIndex(-1,this)">الكل</button></div>
-<div class="grid" id="grid">جاري التحميل...</div>
+<div class="grid" id="grid"></div>
 </div>
 <div id="aboutOverlay" onclick="closeAbout()"></div>
 <div id="aboutBox"><h2>LAILA</h2><p>Welcome to LAILA 💕<br>Enjoy with our collection<br>Handpicked pieces with love, for you.</p><button onclick="closeAbout()">Close</button></div>
@@ -118,28 +119,18 @@ function saveCart(){ localStorage.setItem('laila_cart', JSON.stringify(cart)); u
 function updateCount(){ let n=0; cart.forEach(i=>n+=i.qty); document.getElementById('cartCount').innerText=n; }
 function showToast(t){ let el=document.getElementById('toast'); el.innerText=t; el.style.display='block'; setTimeout(()=>el.style.display='none',1500); }
 async function load(){
-  try{
-    let pSnap = await db.collection("products").get({source:'server'});
-    let cSnap = await db.collection("categories").get({source:'server'});
-    products=[]; pSnap.forEach(d=>{let x=d.data();x.id=d.id;products.push(x);});
-    cats=[]; cSnap.forEach(d=>{let x=d.data();x.id=d.id;cats.push(x);});
-  }catch(e){
-    let pSnap = await db.collection("products").get();
-    let cSnap = await db.collection("categories").get();
-    products=[]; pSnap.forEach(d=>{let x=d.data();x.id=d.id;products.push(x);});
-    cats=[]; cSnap.forEach(d=>{let x=d.data();x.id=d.id;cats.push(x);});
-  }
-  renderCats(); renderCatCards();
-  db.collection("products").onSnapshot(s=>{ if(s.empty && products.length>0) return; products=[]; s.forEach(d=>{let x=d.data();x.id=d.id;products.push(x);}); if(document.getElementById('shopView').style.display!=='none') renderProducts(); });
-  db.collection("categories").onSnapshot(s=>{ if(s.empty && cats.length>0) return; cats=[]; s.forEach(d=>{let x=d.data();x.id=d.id;cats.push(x);}); renderCats(); renderCatCards(); });
-}
-function renderCats(){
-  let bar=document.getElementById('catsBar');
-  bar.innerHTML='<button class="cat-pill '+(activeCat==='all'?'active':'')+'" onclick="filterCatByIndex(-1,this)">الكل</button>' + cats.map((c,i)=>`<button class="cat-pill ${activeCat===c.name?'active':''}" onclick="filterCatByIndex(${i},this)">${c.name}</button>`).join('');
+  let pSnap = await db.collection("products").get();
+  let cSnap = await db.collection("categories").get();
+  products=[]; pSnap.forEach(d=>{let x=d.data();x.id=d.id;products.push(x);});
+  cats=[]; cSnap.forEach(d=>{let x=d.data();x.id=d.id;cats.push(x);});
+  document.getElementById('loadingText').style.display='none';
+  renderCatCards();
+  db.collection("products").onSnapshot(s=>{ if(s.empty) return; products=[]; s.forEach(d=>{let x=d.data();x.id=d.id;products.push(x);}); if(document.getElementById('shopView').style.display==='block') renderProducts(); });
+  db.collection("categories").onSnapshot(s=>{ if(s.empty) return; cats=[]; s.forEach(d=>{let x=d.data();x.id=d.id;cats.push(x);}); renderCatCards(); });
 }
 function renderCatCards(){
   let box=document.getElementById('catCards');
-  if(!cats.length){ box.innerHTML='لسه مفيش أقسام'; return; }
+  if(!cats.length){ box.innerHTML=''; return; }
   box.innerHTML=cats.map((c,i)=>`
     <div class="cat-card">
       ${c.image?`<img src="${c.image}" onclick="openImg(this.src)">`:'<div style="height:150px;background:#EDE3D3;display:flex;align-items:center;justify-content:center;font-size:40px">✨</div>'}
@@ -152,7 +143,7 @@ function goToCat(idx){
   document.getElementById('homeView').style.display='none';
   document.getElementById('shopView').style.display='block';
   document.getElementById('catTitle').innerText = activeCat;
-  renderCats(); renderProducts();
+  renderProducts();
   window.scrollTo(0,0);
 }
 function backToCats(){
@@ -160,30 +151,28 @@ function backToCats(){
   document.getElementById('shopView').style.display='none';
   window.scrollTo(0,0);
 }
-function filterCatByIndex(idx,btn){
-  activeCat = idx===-1 ? 'all' : cats[idx].name;
-  document.getElementById('catTitle').innerText = activeCat==='all' ? 'All Products' : activeCat;
-  document.querySelectorAll('.cat-pill').forEach(b=>b.classList.remove('active')); if(btn) btn.classList.add('active');
-  renderCats(); renderProducts();
-}
 function renderProducts(){
-  let list = activeCat==='all' ? products : products.filter(p=>p.cat===activeCat);
+  let list = products.filter(p=>p.cat===activeCat);
   let grid=document.getElementById('grid');
-  if(!list.length){ grid.innerHTML='لسه مفيش منتجات في القسم ده'; return; }
-  grid.innerHTML=list.map(p=>`
-    <div class="card">
-      ${p.image?`<img src="${p.image}" onclick="openImg(this.src)">`:'<div style="height:150px;background:#ddd"></div>'}
-      <h3>${p.name}</h3>
-      <div class="price">${p.price} EGP</div>
-      <button class="add-btn" onclick="addToCart('${p.id}')">Add to Cart</button>
-    </div>`).join('');
+  if(!list.length){ grid.innerHTML=''; return; }
+  grid.innerHTML=list.map(p=>{
+    let inCart = cart.find(x=>x.id===p.id);
+    let btn = inCart ? `<div class="qty-card"><button onclick="changeQtyCard('${p.id}',-1)">-</button><span>${inCart.qty}</span><button onclick="changeQtyCard('${p.id}',1)">+</button></div>` : `<button class="add-btn" onclick="addToCart('${p.id}')">Add to Cart</button>`;
+    return `<div class="card">${p.image?`<img src="${p.image}" onclick="openImg(this.src)">`:'<div style="height:150px;background:#ddd"></div>'}<h3>${p.name}</h3><div class="price">${p.price} EGP</div>${btn}</div>`;
+  }).join('');
 }
 function addToCart(id){
   let p=products.find(x=>x.id===id); if(!p) return;
   let found=cart.find(x=>x.id===id);
   if(found) found.qty++;
   else cart.push({id:p.id,name:p.name,price:Number(p.price),image:p.image||'',qty:1});
-  saveCart(); showToast('Added to cart ✅');
+  saveCart(); renderProducts(); showToast('Added to cart ✅');
+}
+function changeQtyCard(id,delta){
+  let found=cart.find(x=>x.id===id); if(!found) return;
+  found.qty+=delta;
+  if(found.qty<=0) cart = cart.filter(x=>x.id!==id);
+  saveCart(); renderProducts();
 }
 function openCart(){ document.getElementById('cartOverlay').style.display='block'; document.getElementById('cartBox').style.display='block'; renderCart(); }
 function closeCart(){ document.getElementById('cartOverlay').style.display='none'; document.getElementById('cartBox').style.display='none'; }
@@ -205,8 +194,8 @@ function renderCart(){
   document.getElementById('cartTotal').innerText='التوتال: '+total+' EGP';
   document.getElementById('checkoutForm').style.display='block';
 }
-function changeQty(idx,delta){ cart[idx].qty+=delta; if(cart[idx].qty<=0) cart.splice(idx,1); saveCart(); renderCart(); }
-function removeItem(idx){ cart.splice(idx,1); saveCart(); renderCart(); }
+function changeQty(idx,delta){ cart[idx].qty+=delta; if(cart[idx].qty<=0) cart.splice(idx,1); saveCart(); renderCart(); if(document.getElementById('shopView').style.display==='block') renderProducts(); }
+function removeItem(idx){ cart.splice(idx,1); saveCart(); renderCart(); if(document.getElementById('shopView').style.display==='block') renderProducts(); }
 document.getElementById('payShot').addEventListener('change',function(e){
   let f=e.target.files[0]; if(!f) return;
   let r=new FileReader(); r.onload=function(ev){
@@ -236,6 +225,7 @@ async function confirmOrder(){
     });
     cart=[]; saveCart(); renderCart(); closeCart(); shotBase64=''; document.getElementById('payShot').value=''; document.getElementById('transferNumber').value='';
     document.getElementById('custName').value=''; document.getElementById('custPhone').value=''; document.getElementById('custGov').value=''; document.getElementById('custAddress').value='';
+    if(document.getElementById('shopView').style.display==='block') renderProducts();
     alert('تم استلام أوردرك ✅ هنكلمك للتأكيد');
   }catch(e){ alert('مش اتبعت - جربي تاني'); }
 }
