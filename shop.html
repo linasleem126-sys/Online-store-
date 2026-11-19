@@ -12,8 +12,9 @@ header{display:flex;justify-content:space-between;align-items:center;padding:14p
 .top-btns{display:flex;gap:8px;align-items:center}
 .about-btn{border:1px solid #6B0F2A;color:#6B0F2A;background:transparent;padding:8px 14px;border-radius:20px;cursor:pointer}
 .cart-btn{background:#6B0F2A;color:#fff;border:none;padding:8px 16px;border-radius:20px;cursor:pointer;font-size:15px}
-.hero{text-align:center;padding:16px 0 4px}
-.hero p{color:#8A7A3A;font-size:19px}
+.hero{text-align:center;padding:18px 0 4px}
+.hero-logo{font-size:52px;letter-spacing:12px;color:#6B0F2A;font-weight:bold;line-height:1}
+.hero p{color:#8A7A3A;font-size:19px;margin-top:8px}
 .loading{text-align:center;color:#999;font-size:14px;letter-spacing:2px;margin:14px 0}
 #homeView{display:block}
 #shopView{display:none;position:fixed;inset:0;background:#F5EFE6;z-index:200;overflow-y:auto;padding-bottom:30px}
@@ -42,16 +43,24 @@ header{display:flex;justify-content:space-between;align-items:center;padding:14p
 .qty button{width:32px;height:32px;border-radius:50%;border:1px solid #6B0F2A;background:#fff;color:#6B0F2A;font-size:20px;cursor:pointer;line-height:1;display:flex;align-items:center;justify-content:center}
 .qty span{font-weight:bold;min-width:18px;text-align:center}
 .del{color:red;background:none;border:none;font-size:20px;cursor:pointer;flex-shrink:0}
-input,select,textarea{width:100%;padding:12px;border:1px solid #ddd;border-radius:12px;margin-bottom:10px;font-size:14px;text-align:right;direction:rtl}
+input,select{width:100%;padding:12px;border:1px solid #ddd;border-radius:12px;margin-bottom:10px;font-size:14px;text-align:right;direction:rtl}
 .confirm-btn{width:100%;background:#6B0F2A;color:#fff;border:none;padding:14px;border-radius:20px;font-size:16px;cursor:pointer}
 .close-btn{width:100%;background:#eee;border:none;padding:12px;border-radius:20px;margin-top:8px;cursor:pointer}
 .total{font-size:18px;font-weight:bold;text-align:center;margin:12px 0}
-.toast{position:fixed;bottom:20px;left:50%;transform:translateX(-50%);background:#333;color:#fff;padding:12px 20px;border-radius:20px;z-index:400;display:none}
-#aboutOverlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:320}
-#aboutBox{display:none;position:fixed;left:16px;right:16px;top:50%;transform:translateY(-50%);background:#fff;border-radius:20px;padding:24px;z-index:330;text-align:center}
-#aboutBox h2{color:#6B0F2A;letter-spacing:6px;font-size:30px;margin-bottom:10px}
-#aboutBox p{color:#555;line-height:24px;font-size:15px}
-#aboutBox button{background:#6B0F2A;color:#fff;border:none;padding:11px 28px;border-radius:20px;margin-top:16px;cursor:pointer}
+.empty-cart{text-align:center;color:#999;padding:20px 0;font-size:15px}
+.toast{position:fixed;bottom:20px;left:50%;transform:translateX(-50%);background:#333;color:#fff;padding:12px 20px;border-radius:20px;z-index:400;display:none;text-align:center;max-width:90%}
+#aboutPage{display:none;position:fixed;inset:0;background:#F5EFE6;z-index:250;overflow-y:auto;padding:16px;direction:rtl;text-align:right}
+#aboutPage .a-header{display:flex;justify-content:space-between;align-items:center;padding:10px 0}
+#aboutPage .a-logo{font-size:30px;letter-spacing:8px;color:#6B0F2A;font-weight:bold;direction:ltr}
+#aboutPage .a-back{background:#6B0F2A;color:#fff;border:none;padding:8px 14px;border-radius:20px;font-size:13px;cursor:pointer}
+#aboutPage .a-line{height:1px;background:#C9A24B;margin:10px 0}
+#aboutPage .a-box{background:#fff;border-radius:18px;padding:18px;margin-bottom:14px;text-align:center}
+#aboutPage .a-box h2{color:#6B0F2A;font-size:20px;margin-bottom:10px}
+#aboutPage .a-box p{font-size:15px;line-height:28px}
+#aboutPage .a-box ul{text-align:right;list-style:none;line-height:30px;font-size:14px}
+#aboutPage .a-box ul li{border-bottom:1px solid #eee;padding:8px 0}
+#aboutPage .a-box ul li:last-child{border:none}
+#aboutPage .a-pay-num{font-size:20px;color:#6B0F2A;font-weight:bold;letter-spacing:1px}
 .pay-box{background:#FFF8E6;border:1px dashed #C9A24B;border-radius:14px;padding:14px;margin:10px 0 14px;text-align:center;line-height:26px;font-size:14px}
 .pay-box b{color:#6B0F2A;font-size:18px;letter-spacing:1px}
 .copy-btn{background:#fff;border:1px solid #6B0F2A;color:#6B0F2A;padding:6px 14px;border-radius:20px;cursor:pointer;margin-top:8px;font-size:13px}
@@ -63,7 +72,7 @@ input,select,textarea{width:100%;padding:12px;border:1px solid #ddd;border-radiu
 </head>
 <body>
 <header><div class="logo">LAILA</div><div class="top-btns"><button class="about-btn" onclick="openAbout()">About</button><button class="cart-btn" onclick="openCart()">Cart 🛒 (<span id="cartCount">0</span>)</button></div></header>
-<div class="hero"><p>Enjoy with our collection</p></div>
+<div class="hero"><div class="hero-logo">LAILA</div><p>Enjoy with our collection</p></div>
 <div class="loading" id="loadingText">Loading...</div>
 <div id="homeView">
 <div class="cat-cards" id="catCards"></div>
@@ -73,13 +82,33 @@ input,select,textarea{width:100%;padding:12px;border:1px solid #ddd;border-radiu
 <div class="cat-title" id="catTitle"></div>
 <div class="grid" id="grid"></div>
 </div>
-<div id="aboutOverlay" onclick="closeAbout()"></div>
-<div id="aboutBox"><h2>LAILA</h2><p>Welcome to LAILA 💕<br>Enjoy with our collection<br>Handpicked pieces with love, for you.</p><button onclick="closeAbout()">Close</button></div>
+
+<div id="aboutPage">
+<div class="a-header"><div class="a-logo">LAILA</div><button class="a-back" onclick="closeAbout()">← Back to Shop</button></div>
+<div class="a-line"></div>
+<div class="a-box"><h2>About us</h2>
+<p>online store </br><b>owner : lina sleem</b><br>whatsapp:01020245122<br>shipping to all over egypt</p></div>
+<div class="a-box"><h2>🚚 الشحن والتوصيل</h2>
+<p>متاح شحن جميع المحافظات<br>سعر الشحن من <b>100 إلى 140</b> حسب مكانك<br>مدة التوصيل من <b>3 لـ 5 أيام</b> كحد أقصى</p></div>
+<div class="a-box"><h2>💳 الدفع</h2>
+<p>الدفع عن طريق فودافون كاش على الرقم:</p>
+<div class="a-pay-num">01020245122</div>
+<p style="margin-top:8px">بتحولي وبترفعي سكرين شوت الدفع مع الأوردر،<br>والأوردر بيفضل معلّق لحد ما نأكده ويظهر مدفوع ✅</p></div>
+<div class="a-box"><h2>❓ الأسئلة الشائعة</h2>
+<ul>
+<li><b>الشحن بياخد قد إيه؟</b><br>من 3 لـ 5 أيام كحد أقصى</li>
+<li><b>بتشحنوا فين؟</b><br>جميع المحافظات</li>
+<li><b>سعر الشحن كام؟</b><br>من 100 إلى 140 حسب مكانك</li>
+<li><b>الدفع إزاي؟</b><br>فودافون كاش على 01020245122 + سكرين شوت مع الأوردر</li>
+<li><b>مكانكم فين؟</b><br>دمياط الجديدة - متجر أونلاين</li>
+</ul></div>
+</div>
+
 <div id="imgOverlay" onclick="closeImg()"></div>
 <div id="imgBox"><img id="bigImg" src=""><br><button onclick="closeImg()">Close ✕</button></div>
 <div id="cartOverlay" onclick="closeCart()"></div>
 <div id="cartBox">
-<h2 style="color:#6B0F2A;text-align:center">🛒 الكارت بتاعك</h2>
+<h2 style="color:#6B0F2A;text-align:center">🛒 Your Cart</h2>
 <div id="cartItems"></div>
 <div class="total" id="cartTotal"></div>
 <div id="checkoutForm" style="display:none">
@@ -95,39 +124,45 @@ input,select,textarea{width:100%;padding:12px;border:1px solid #ddd;border-radiu
 <input id="transferNumber" type="tel" inputmode="numeric" placeholder="مثال: 010xxxxxxxx">
 <button class="confirm-btn" onclick="confirmOrder()">تأكيد الأوردر ✅</button>
 </div>
-<button class="close-btn" onclick="closeCart()">إغلاق</button>
+<button class="close-btn" onclick="closeCart()">Close</button>
 </div>
-<div class="toast" id="toast">Added to cart ✅</div>
+<div class="toast" id="toast"></div>
 <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-firestore-compat.js"></script>
 <script>
 const PAY_NUMBER = "01020245122";
-function copyPayNumber(){ navigator.clipboard.writeText(PAY_NUMBER).then(()=>{ showToast('Added to cart ✅'); }); }
+function copyPayNumber(){
+  function done(){ showToast('تم نسخ الرقم الى الحافظة', 2500); }
+  if(navigator.clipboard && navigator.clipboard.writeText){
+    navigator.clipboard.writeText(PAY_NUMBER).then(done).catch(function(){
+      let ta=document.createElement('textarea'); ta.value=PAY_NUMBER; document.body.appendChild(ta); ta.select();
+      try{ document.execCommand('copy'); done(); }catch(e){}
+      document.body.removeChild(ta);
+    });
+  } else {
+    let ta=document.createElement('textarea'); ta.value=PAY_NUMBER; document.body.appendChild(ta); ta.select();
+    try{ document.execCommand('copy'); done(); }catch(e){}
+    document.body.removeChild(ta);
+  }
+}
 const firebaseConfig = {apiKey:"AIzaSyCcSNVB5cnqtQluyWMyDX6I5q_dj7h6f2Y",authDomain:"laila-store-2dc4c.firebaseapp.com",projectId:"laila-store-2dc4c",storageBucket:"laila-store-2dc4c.firebasestorage.app",messagingSenderId:"450895782726",appId:"1:450895782726:web:57e264ff703863d6583b47",measurementId:"G-M9ZF3Y96DC"};
 firebase.initializeApp(firebaseConfig);
 const db = firebase.firestore();
 let products=[]; let cats=[]; let activeCat='all';
 let cart = JSON.parse(localStorage.getItem('laila_cart')||'[]');
 let shotBase64="";
-let loadedOnce=false;
+let firstLoadDone=false;
+function hideLoading(){ if(firstLoadDone) return; firstLoadDone=true; let el=document.getElementById('loadingText'); if(el) el.style.display='none'; }
 function openImg(src){document.getElementById('bigImg').src=src;document.getElementById('imgOverlay').style.display='block';document.getElementById('imgBox').style.display='block';}
 function closeImg(){document.getElementById('imgOverlay').style.display='none';document.getElementById('imgBox').style.display='none';}
-function openAbout(){document.getElementById('aboutOverlay').style.display='block';document.getElementById('aboutBox').style.display='block';}
-function closeAbout(){document.getElementById('aboutOverlay').style.display='none';document.getElementById('aboutBox').style.display='none';}
+function openAbout(){document.getElementById('aboutPage').style.display='block';document.getElementById('aboutPage').scrollTop=0;}
+function closeAbout(){document.getElementById('aboutPage').style.display='none';}
 function saveCart(){ localStorage.setItem('laila_cart', JSON.stringify(cart)); updateCount(); }
 function updateCount(){ let n=0; cart.forEach(i=>n+=i.qty); document.getElementById('cartCount').innerText=n; }
-function showToast(t){ let el=document.getElementById('toast'); el.innerText=t; el.style.display='block'; setTimeout(()=>el.style.display='none',1500); }
-async function load(){
-  if(loadedOnce) return;
-  let pSnap = await db.collection("products").get();
-  let cSnap = await db.collection("categories").get();
-  products=[]; pSnap.forEach(d=>{let x=d.data();x.id=d.id;products.push(x);});
-  cats=[]; cSnap.forEach(d=>{let x=d.data();x.id=d.id;cats.push(x);});
-  document.getElementById('loadingText').style.display='none';
-  loadedOnce=true;
-  renderCatCards();
-  db.collection("products").onSnapshot(s=>{ if(s.empty) return; products=[]; s.forEach(d=>{let x=d.data();x.id=d.id;products.push(x);}); if(document.getElementById('shopView').style.display==='block') renderProducts(); });
-  db.collection("categories").onSnapshot(s=>{ if(s.empty) return; cats=[]; s.forEach(d=>{let x=d.data();x.id=d.id;cats.push(x);}); renderCatCards(); });
+function showToast(t, ms){ let el=document.getElementById('toast'); el.innerText=t; el.style.display='block'; setTimeout(()=>el.style.display='none', ms||1500); }
+function load(){
+  db.collection("categories").onSnapshot(s=>{ cats=[]; s.forEach(d=>{let x=d.data();x.id=d.id;cats.push(x);}); if(cats.length){ hideLoading(); renderCatCards(); } });
+  db.collection("products").onSnapshot(s=>{ products=[]; s.forEach(d=>{let x=d.data();x.id=d.id;products.push(x);}); if(document.getElementById('shopView').style.display==='block') renderProducts(); });
 }
 function renderCatCards(){
   let box=document.getElementById('catCards');
@@ -136,7 +171,7 @@ function renderCatCards(){
     <div class="cat-card">
       ${c.image?`<img src="${c.image}" onclick="openImg(this.src)">`:'<div style="height:150px;background:#EDE3D3;display:flex;align-items:center;justify-content:center;font-size:40px">✨</div>'}
       <h3>${c.name}</h3>
-      <button class="shop-now" onclick="goToCat(${i})">Shop Now</button>
+      <button class="shop-now" onclick="goToCat(${i})">Start shopping</button>
     </div>`).join('');
 }
 function goToCat(idx){
@@ -146,37 +181,47 @@ function goToCat(idx){
   renderProducts();
   document.getElementById('shopView').scrollTop=0;
 }
-function backToCats(){
-  document.getElementById('shopView').style.display='none';
-}
+function backToCats(){ document.getElementById('shopView').style.display='none'; }
 function renderProducts(){
   let list = products.filter(p=>p.cat===activeCat);
   let grid=document.getElementById('grid');
   if(!list.length){ grid.innerHTML=''; return; }
   grid.innerHTML=list.map(p=>{
     let inCart = cart.find(x=>x.id===p.id);
-    let btn = inCart ? `<div class="qty-card"><button onclick="changeQtyCard('${p.id}',-1)">-</button><span>${inCart.qty}</span><button onclick="changeQtyCard('${p.id}',1)">+</button></div>` : `<button class="add-btn" onclick="addToCart('${p.id}')">Add to Cart</button>`;
+    let btn = inCart ? `<div class="qty-card"><button data-id="${p.id}" onclick="changeQtyCard(this,-1)">-</button><span>${inCart.qty}</span><button data-id="${p.id}" onclick="changeQtyCard(this,1)">+</button></div>` : `<button class="add-btn" data-id="${p.id}" onclick="addToCart(this)">Add to Cart</button>`;
     return `<div class="card">${p.image?`<img src="${p.image}" onclick="openImg(this.src)">`:'<div style="height:150px;background:#ddd"></div>'}<h3>${p.name}</h3><div class="price">${p.price} EGP</div>${btn}</div>`;
   }).join('');
 }
-function addToCart(id){
+function addToCart(el){
+  let id = el.getAttribute('data-id');
   let p=products.find(x=>x.id===id); if(!p) return;
   let found=cart.find(x=>x.id===id);
   if(found) found.qty++;
   else cart.push({id:p.id,name:p.name,price:Number(p.price),image:p.image||'',qty:1});
-  saveCart(); renderProducts();
+  saveCart();
+  let newQty = cart.find(x=>x.id===id).qty;
+  el.outerHTML = `<div class="qty-card"><button data-id="${id}" onclick="changeQtyCard(this,-1)">-</button><span>${newQty}</span><button data-id="${id}" onclick="changeQtyCard(this,1)">+</button></div>`;
 }
-function changeQtyCard(id,delta){
+function changeQtyCard(el,delta){
+  let id = el.getAttribute('data-id');
   let found=cart.find(x=>x.id===id); if(!found) return;
   found.qty+=delta;
-  if(found.qty<=0) cart = cart.filter(x=>x.id!==id);
-  saveCart(); renderProducts();
+  if(found.qty<=0){
+    cart = cart.filter(x=>x.id!==id);
+    saveCart();
+    let card = el.closest('.qty-card');
+    if(card) card.outerHTML = `<button class="add-btn" data-id="${id}" onclick="addToCart(this)">Add to Cart</button>`;
+    return;
+  }
+  saveCart();
+  let span = el.parentElement.querySelector('span');
+  if(span) span.innerText = found.qty;
 }
 function openCart(){ document.getElementById('cartOverlay').style.display='block'; document.getElementById('cartBox').style.display='block'; renderCart(); }
 function closeCart(){ document.getElementById('cartOverlay').style.display='none'; document.getElementById('cartBox').style.display='none'; }
 function renderCart(){
   let box=document.getElementById('cartItems');
-  if(!cart.length){ box.innerHTML=''; document.getElementById('cartTotal').innerText=''; document.getElementById('checkoutForm').style.display='none'; return; }
+  if(!cart.length){ box.innerHTML='<div class="empty-cart">ur cart is empty</div>'; document.getElementById('cartTotal').innerText=''; document.getElementById('checkoutForm').style.display='none'; return; }
   let total=0; cart.forEach(i=>total+=i.price*i.qty);
   box.innerHTML=cart.map((item,idx)=>`
     <div class="cart-item">
@@ -189,7 +234,7 @@ function renderCart(){
       </div>
       <button class="del" onclick="removeItem(${idx})">×</button>
     </div>`).join('');
-  document.getElementById('cartTotal').innerText='التوتال: '+total+' EGP';
+  document.getElementById('cartTotal').innerText='Total: '+total+' EGP';
   document.getElementById('checkoutForm').style.display='block';
 }
 function changeQty(idx,delta){ cart[idx].qty+=delta; if(cart[idx].qty<=0) cart.splice(idx,1); saveCart(); renderCart(); if(document.getElementById('shopView').style.display==='block') renderProducts(); }
@@ -224,6 +269,7 @@ async function confirmOrder(){
     cart=[]; saveCart(); renderCart(); closeCart(); shotBase64=''; document.getElementById('payShot').value=''; document.getElementById('transferNumber').value='';
     document.getElementById('custName').value=''; document.getElementById('custPhone').value=''; document.getElementById('custGov').value=''; document.getElementById('custAddress').value='';
     if(document.getElementById('shopView').style.display==='block') renderProducts();
+    showToast('تم استلام طلبك بنجاح سيتم التواصل معك في اقرب وقت', 4000);
   }catch(e){}
 }
 updateCount();
